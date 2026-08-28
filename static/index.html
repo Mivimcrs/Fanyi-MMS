@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>莱·梵壹 · 会员实时跟踪管理系统</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0b0e15; --bg2:#0e121b; --panel:#131826; --panel2:#182031; --panel3:#1d2740;
+  --border:#25304a; --border2:#2f3d5c;
+  --text:#e9edf6; --muted:#8b94ab; --muted2:#5f687d;
+  --violet:#a78bfa; --violet2:#7c5cf0; --rose:#f0a6c0; --gold:#f2c14e;
+  --teal:#3ddbb0; --amber:#fbbf24; --red:#f87171; --gray:#94a3b8; --slate:#64748b;
+  --shadow:0 8px 32px rgba(0,0,0,.45);
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(124,92,240,.14), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(61,219,176,.07), transparent 60%),
+    var(--bg);
+  color:var(--text);
+  font-family:"Inter","HarmonyOS Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font-size:14px; line-height:1.55;
+}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#2a3450;border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+
+#app{display:flex;min-height:100vh}
+
+/* ---------- sidebar ---------- */
+.sidebar{
+  width:228px;flex:0 0 228px;background:linear-gradient(180deg,#101624,#0c101a);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;
+}
+.brand{padding:22px 20px 18px;border-bottom:1px solid var(--border)}
+.brand .logo{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.brand .mark{
+  width:36px;height:36px;border-radius:11px;flex:0 0 36px;
+  background:linear-gradient(135deg,var(--violet2),var(--rose));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:17px;color:#fff;letter-spacing:.5px;
+  box-shadow:0 4px 18px rgba(124,92,240,.45);
+}
+.brand h1{font-size:15.5px;font-weight:700;letter-spacing:.5px}
+.brand .sub{font-size:11.5px;color:var(--muted);margin-top:1px}
+.nav{padding:14px 12px;display:flex;flex-direction:column;gap:4px}
+.nav button{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  background:none;border:none;color:var(--muted);font-size:14px;font-family:inherit;
+  padding:10px 12px;border-radius:10px;cursor:pointer;transition:.15s;
+}
+.nav button:hover{background:rgba(255,255,255,.04);color:var(--text)}
+.nav button.active{background:linear-gradient(90deg,rgba(124,92,240,.22),rgba(124,92,240,.05));color:#fff;box-shadow:inset 0 0 0 1px rgba(167,139,250,.25)}
+.nav button .ic{width:18px;height:18px;flex:0 0 18px;opacity:.9}
+.side-foot{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}
+.save-state{display:flex;align-items:center;gap:7px;padding:8px 10px;border-radius:9px;background:rgba(61,219,176,.08);border:1px solid rgba(61,219,176,.2)}
+.save-state.warn{background:rgba(251,191,36,.08);border-color:rgba(251,191,36,.25)}
+.save-state .dot{width:8px;height:8px;border-radius:50%;background:var(--teal);flex:0 0 8px}
+.save-state.warn .dot{background:var(--amber)}
+.save-state .retry{margin-left:auto;background:none;border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:2px 8px;font-size:11.5px;cursor:pointer;font-family:inherit}
+.save-state .retry:hover{border-color:var(--violet)}
+.side-foot .mini{margin-top:10px;display:flex;gap:6px}
+.side-foot .mini button{flex:1;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 0;font-size:12px;cursor:pointer;font-family:inherit;transition:.15s}
+.side-foot .mini button:hover{color:var(--text);border-color:var(--border2)}
+
+/* ---------- main ---------- */
+main{flex:1;min-width:0;padding:26px 30px 60px;max-width:1460px;margin:0 auto;width:100%}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;gap:14px;flex-wrap:wrap}
+.page-head h2{font-size:22px;font-weight:700;letter-spacing:.3px}
+.page-head .desc{color:var(--muted);font-size:13px;margin-top:4px}
+.page-head .actions{display:flex;gap:10px;align-items:center}
+.btn{
+  display:inline-flex;align-items:center;gap:7px;border:none;cursor:pointer;font-family:inherit;
+  border-radius:10px;padding:9px 16px;font-size:13.5px;font-weight:600;transition:.15s;
+  background:var(--panel2);color:var(--text);border:1px solid var(--border);
+}
+.btn:hover{border-color:var(--border2);background:var(--panel3)}
+.btn.primary{background:linear-gradient(135deg,var(--violet2),#9d6bf5);border-color:transparent;color:#fff;box-shadow:0 4px 16px rgba(124,92,240,.35)}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.gold{background:linear-gradient(135deg,#d8a13c,#f2c14e);border-color:transparent;color:#221a05;box-shadow:0 4px 16px rgba(242,193,78,.25)}
+.btn.danger{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.3);color:#fca5a5}
+.btn.danger:hover{background:rgba(248,113,113,.2)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---------- KPI ---------- */
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:14px}
+.kpi{
+  background:linear-gradient(160deg,var(--panel),var(--bg2));
+  border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;
+  position:relative;overflow:hidden;transition:.2s;
+}
+.kpi:hover{transform:translateY(-2px);border-color:var(--border2);box-shadow:var(--shadow)}
+.kpi .k-label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpi .k-label .kd{width:7px;height:7px;border-radius:50%;display:inline-block}
+.kpi .k-value{font-size:26px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:.3px}
+.kpi .k-sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+.kpi.money .k-value{background:linear-gradient(90deg,#f5d78e,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.kpi.big .k-value{font-size:28px}
+.kpi .glow{position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;filter:blur(34px);opacity:.35;pointer-events:none}
+
+/* ---------- range bar ---------- */
+.range-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:14px}
+.range-bar .rb-title{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px;white-space:nowrap}
+.range-bar .input{width:150px}
+.rb-sep{color:var(--muted);font-size:12.5px}
+.rb-info{margin-left:auto;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.rb-info b{color:var(--gold);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ---------- panels & charts ---------- */
+.panel{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.panel h3{font-size:14.5px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.panel h3 .hint{font-size:11.5px;color:var(--muted);font-weight:400;margin-left:auto}
+.chart-row{display:grid;grid-template-columns:340px 340px 1fr;gap:14px;margin-bottom:14px}
+.chart-row2{display:grid;grid-template-columns:1fr 400px;gap:14px}
+.donut-wrap{display:flex;align-items:center;gap:18px}
+.legend{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.legend .li{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.legend .li .sw{width:9px;height:9px;border-radius:3px;flex:0 0 9px}
+.legend .li b{color:var(--text);font-variant-numeric:tabular-nums}
+.legend .li .pct{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+table.tbl th{
+  text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:9px 10px;
+  border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;background:var(--panel);z-index:2;
+}
+table.tbl td{padding:9px 10px;border-bottom:1px solid rgba(37,48,74,.5);white-space:nowrap;font-variant-numeric:tabular-nums}
+table.tbl tbody tr{cursor:pointer;transition:.12s}
+table.tbl tbody tr:hover{background:rgba(167,139,250,.06)}
+table.tbl .num{ text-align:right}
+
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2.5px 10px;border-radius:99px;font-size:11.5px;font-weight:600}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.normal{color:var(--teal);background:rgba(61,219,176,.1)}
+.pill.warning{color:var(--amber);background:rgba(251,191,36,.1)}
+.pill.sleeping{color:var(--red);background:rgba(248,113,113,.1)}
+.pill.expired{color:var(--gray);background:rgba(148,163,184,.12)}
+.pill.refund{color:var(--slate);background:rgba(100,116,139,.15)}
+.pill.pending{color:#6096ff;background:rgba(96,150,255,.12)}
+.card-tag{display:inline-block;padding:1.5px 8px;border-radius:6px;font-size:11.5px;font-weight:600}
+.card-tag.期限卡{color:#a5c8ff;background:rgba(96,150,255,.12)}
+.card-tag.次卡{color:var(--rose);background:rgba(240,166,192,.1)}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.toolbar .sp{flex:1}
+.input,.select{
+  background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:10px;
+  padding:8px 12px;font-size:13px;font-family:inherit;outline:none;transition:.15s;min-width:0;
+}
+.input:focus,.select:focus{border-color:var(--violet);box-shadow:0 0 0 3px rgba(124,92,240,.15)}
+.input{width:230px}
+.select{width:auto}
+.seg{display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.seg button{background:none;border:none;color:var(--muted);padding:8px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;transition:.15s}
+.seg button.on{background:var(--panel3);color:#fff}
+
+.empty{padding:40px;text-align:center;color:var(--muted);font-size:13px}
+.badge{display:inline-block;background:rgba(167,139,250,.12);color:var(--violet);border-radius:6px;padding:1px 8px;font-size:11.5px;font-weight:600}
+
+/* ---------- drawer ---------- */
+.drawer-mask{position:fixed;inset:0;background:rgba(5,8,14,.6);backdrop-filter:blur(3px);z-index:50;opacity:0;pointer-events:none;transition:.25s}
+.drawer-mask.show{opacity:1;pointer-events:auto}
+.drawer{
+  position:fixed;top:0;right:-560px;width:560px;max-width:94vw;height:100vh;z-index:51;
+  background:linear-gradient(180deg,#141a29,#0e121b);border-left:1px solid var(--border);
+  box-shadow:-20px 0 60px rgba(0,0,0,.5);transition:right .28s cubic-bezier(.2,.8,.25,1);
+  display:flex;flex-direction:column;
+}
+.drawer.show{right:0}
+.drawer-head{padding:20px 22px 16px;border-bottom:1px solid var(--border)}
+.drawer-head .row1{display:flex;align-items:center;gap:12px}
+.drawer-head h3{font-size:18px;font-weight:700}
+.drawer-head .mid{color:var(--muted);font-size:13px}
+.drawer-head .close{margin-left:auto;background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:4px}
+.drawer-head .close:hover{color:var(--text)}
+.drawer-body{flex:1;overflow-y:auto;padding:20px 22px}
+.drawer-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px}
+.drawer-foot .btn{flex:1;justify-content:center}
+
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:20px}
+.info-grid .cell{background:var(--bg2);border:1px solid rgba(37,48,74,.6);border-radius:10px;padding:9px 12px}
+.info-grid .cell.wide{grid-column:1/-1}
+.info-grid .lbl{font-size:11.5px;color:var(--muted)}
+.info-grid .val{font-size:14px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums;word-break:break-all}
+.progress{height:8px;border-radius:99px;background:var(--chart-track);overflow:hidden;margin:8px 0 4px}
+.progress i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--violet2),var(--violet))}
+.sub-title{font-size:13px;font-weight:700;color:var(--muted);margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+.sub-title::before{content:"";width:3px;height:14px;border-radius:2px;background:var(--violet)}
+
+/* ---------- modal ---------- */
+.modal-mask{position:fixed;inset:0;background:rgba(5,8,14,.66);backdrop-filter:blur(4px);z-index:80;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.2s}
+.modal-mask.show{opacity:1;pointer-events:auto}
+.modal{
+  width:540px;max-width:94vw;max-height:90vh;overflow-y:auto;border-radius:16px;
+  background:linear-gradient(170deg,#161d2e,#10141f);border:1px solid var(--border2);
+  box-shadow:var(--shadow);transform:translateY(12px) scale(.98);transition:.22s;
+}
+.modal-mask.show .modal{transform:none}
+.modal-head{padding:18px 22px 0;display:flex;align-items:center}
+.modal-head h3{font-size:16.5px;font-weight:700}
+.modal-head .x{margin-left:auto;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+.modal-body{padding:16px 22px}
+.modal-foot{padding:4px 22px 20px;display:flex;gap:10px;justify-content:flex-end}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field.wide{grid-column:1/-1}
+.field label{font-size:12px;color:var(--muted);font-weight:600}
+.field label .req{color:var(--red)}
+.field .input,.field .select{width:100%}
+.field textarea.input{resize:vertical;min-height:56px;width:100%}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;user-select:none}
+.chk input{accent-color:var(--violet2);width:15px;height:15px}
+.form-tip{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.6}
+.form-tip b{color:var(--gold)}
+
+/* ---------- toast ---------- */
+#toast-root{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{
+  background:#182034;border:1px solid var(--border2);border-radius:11px;padding:10px 18px;
+  font-size:13px;box-shadow:var(--shadow);display:flex;align-items:center;gap:9px;
+  animation:pop .25s cubic-bezier(.2,.9,.3,1.2);max-width:88vw;
+}
+.toast.ok{border-color:rgba(61,219,176,.4)}.toast.ok .ti{color:var(--teal)}
+.toast.warn{border-color:rgba(251,191,36,.45)}.toast.warn .ti{color:var(--amber)}
+.toast.err{border-color:rgba(248,113,113,.45)}.toast.err .ti{color:var(--red)}
+.toast .ti{font-size:15px}
+@keyframes pop{from{opacity:0;transform:translateY(-8px) scale(.95)}to{opacity:1}}
+.fade-out{animation:fo .3s forwards}
+@keyframes fo{to{opacity:0;transform:translateY(-8px)}}
+
+.mono{font-variant-numeric:tabular-nums}
+.gold-t{color:var(--gold)}
+.muted{color:var(--muted)}
+.link{color:var(--violet);cursor:pointer;font-size:12px;background:none;border:none;font-family:inherit;padding:0}
+.link:hover{text-decoration:underline}
+.link.danger{color:var(--red)}
+
+@media (max-width:1200px){
+  .kpi-grid{grid-template-columns:repeat(4,1fr)}
+  .chart-row{grid-template-columns:1fr 1fr}
+  .chart-row2{grid-template-columns:1fr}
+}
+@media (max-width:860px){
+  .sidebar{position:fixed;z-index:60;left:-228px;transition:left .25s}
+  .sidebar.open{left:0}
+  main{padding:18px 14px 50px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .chart-row{grid-template-columns:1fr}
+  .info-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  #menu-btn{display:inline-flex !important}
+}
+#menu-btn{display:none;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:8px 12px;cursor:pointer}
+
+/* ---- 图表/结构色变量（随主题切换） ---- */
+:root{
+  --chart-track:#1a2236; --grid-line:#1c2438;
+  --axis-muted:#5f687d; --axis-amber:#8a7230;
+  --bar1:#a78bfa; --bar2:#7c5cf0;
+}
+
+/* ===== 白日模式：鼠尾草绿 #5F8D7E + 暖米 #FBF9F5 =====
+   墨色文字 #373737 ≈ 11.2:1（> AA 7:1，达 AAA）
+   主色按钮 鼠尾草底 + 墨字 #1B1B1B ≈ 4.6:1（达 AA） */
+html[data-theme="day"]{
+  color-scheme:light;
+  --bg:#FBF9F5; --bg2:#F3EFE5; --panel:#FFFFFF; --panel2:#F5F1E8; --panel3:#ECE7DA;
+  --border:#E2DBC9; --border2:#D2C9B0;
+  --text:#373737;            /* 墨色文字 */
+  --muted:#5C5547; --muted2:#857D6A;
+  --violet:#3F6B5C;          /* 深鼠尾草（文字/链接，AA） */
+  --violet2:#4A7568;         /* 鼠尾草深端（进度/渐变） */
+  --rose:#A85F78;
+  --gold:#8A5A12;            /* 深金（金额文字，AA） */
+  --teal:#257A5E; --amber:#8A5E16; --red:#B5372A; --gray:#6B6457; --slate:#5A5346;
+  --shadow:0 8px 28px rgba(95,141,126,.18);
+  --chart-track:#E7E1D2; --grid-line:#ECE6D7; --axis-muted:#857D6A; --axis-amber:#8A5A12;
+  --bar1:#7BA697; --bar2:#4A7568;
+}
+html[data-theme="day"] body{
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(95,141,126,.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(176,150,90,.06), transparent 60%),
+    var(--bg);
+}
+html[data-theme="day"] ::-webkit-scrollbar-thumb{background:#C9BFA6}
+html[data-theme="day"] .sidebar{background:linear-gradient(180deg,#FBF9F5,#F1EDE2)}
+html[data-theme="day"] .nav button:hover{background:rgba(95,141,126,.08);color:var(--text)}
+html[data-theme="day"] .nav button.active{background:linear-gradient(90deg,rgba(95,141,126,.18),rgba(95,141,126,.04));color:var(--text);box-shadow:inset 0 0 0 1px rgba(95,141,126,.30)}
+html[data-theme="day"] .save-state{background:rgba(37,122,94,.08);border-color:rgba(37,122,94,.25)}
+html[data-theme="day"] .save-state.warn{background:rgba(138,94,22,.08);border-color:rgba(138,94,22,.30)}
+html[data-theme="day"] .side-foot .mini button{background:rgba(95,141,126,.05);border-color:var(--border)}
+html[data-theme="day"] .side-foot .mini button:hover{color:var(--text);border-color:var(--border2)}
+html[data-theme="day"] .btn{background:var(--panel2);border-color:var(--border)}
+html[data-theme="day"] .btn:hover{background:var(--panel3)}
+html[data-theme="day"] .btn.primary{background:linear-gradient(135deg,#5F8D7E,#4A7568);color:#1B1B1B;box-shadow:0 4px 16px rgba(95,141,126,.30)}
+html[data-theme="day"] .btn.primary:hover{filter:brightness(1.03)}
+html[data-theme="day"] .btn.gold{background:linear-gradient(135deg,#C9932F,#9A6A1B);color:#1B1B1B}
+html[data-theme="day"] .btn.danger{background:rgba(181,55,42,.10);border-color:rgba(181,55,42,.30);color:#B5372A}
+html[data-theme="day"] .kpi{background:linear-gradient(160deg,#FFFFFF,#F3EFE5)}
+html[data-theme="day"] .kpi:hover{border-color:var(--border2)}
+html[data-theme="day"] .range-bar,
+html[data-theme="day"] .panel{background:linear-gradient(160deg,#FFFFFF,#F4F0E7)}
+html[data-theme="day"] table.tbl th{background:#FFFFFF}
+html[data-theme="day"] table.tbl td{border-bottom-color:rgba(120,108,80,.20)}
+html[data-theme="day"] table.tbl tbody tr:hover{background:rgba(95,141,126,.06)}
+html[data-theme="day"] .info-grid .cell{border-color:var(--border)}
+html[data-theme="day"] .drawer{background:linear-gradient(180deg,#FFFFFF,#F4F0E7);box-shadow:-20px 0 60px rgba(95,141,126,.18)}
+html[data-theme="day"] .modal{background:linear-gradient(170deg,#FFFFFF,#F6F2EA)}
+html[data-theme="day"] .toast{background:#FFFFFF}
+html[data-theme="day"] .seg button.on{background:var(--panel3);color:var(--text)}
+html[data-theme="day"] .badge{background:rgba(95,141,126,.12);color:var(--violet)}
+html[data-theme="day"] .card-tag.期限卡{color:#2F6A8A;background:rgba(47,106,138,.12)}
+html[data-theme="day"] .card-tag.次卡{color:var(--rose);background:rgba(168,95,120,.12)}
+html[data-theme="day"] .pill.pending{color:#2F6A8A;background:rgba(47,106,138,.12)}
+html[data-theme="day"] .input:focus,
+html[data-theme="day"] .select:focus{border-color:var(--violet);box-shadow:0 0 0 3px rgba(95,141,126,.18)}
+html[data-theme="day"] .drawer-mask,
+html[data-theme="day"] .modal-mask{background:rgba(40,35,25,.32)}
+
+/* ---- 主题切换按钮（左下角） ---- */
+#theme-toggle{position:fixed;left:246px;bottom:18px;z-index:40;display:inline-flex;align-items:center;gap:8px;
+  background:var(--panel2);border:1px solid var(--border2);color:var(--text);border-radius:99px;
+  padding:8px 14px;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;
+  box-shadow:var(--shadow);transition:background .2s,border-color .2s}
+#theme-toggle:hover{background:var(--panel3);border-color:var(--violet)}
+#theme-toggle svg{width:16px;height:16px;flex:0 0 16px}
+#theme-toggle .ti-moon{display:none}
+html[data-theme="day"] #theme-toggle .ti-sun{display:none}
+html[data-theme="day"] #theme-toggle .ti-moon{display:inline-block}
+#theme-toggle .lbl-to-night{display:none}
+html[data-theme="day"] #theme-toggle .lbl-to-day{display:none}
+html[data-theme="day"] #theme-toggle .lbl-to-night{display:inline}
+@media(max-width:860px){#theme-toggle{left:18px}}
+</style>
+<script>try{var _t=localStorage.getItem("lf_theme");if(_t==="day")document.documentElement.setAttribute("data-theme","day");}catch(e){}</script>
+</head>
+<body>
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo"><div class="mark">梵</div></div>
+      <div>
+        <h1>莱·梵壹</h1>
+        <div class="sub">会员实时跟踪管理系统</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <button data-view="dashboard" class="active">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        数据大屏
+      </button>
+      <button data-view="members">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.6c2.7.2 4.9 1.9 5.6 4.4"/></svg>
+        客户管理
+      </button>
+      <button data-view="records">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2.5v3M16 2.5v3M3 9.5h18M8 13.5h3M8 17h6"/></svg>
+        上课记录
+      </button>
+      <button data-view="versions">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 8v4l3 2"/></svg>
+        历史版本
+      </button>
+    </nav>
+    <div class="side-foot">
+      <div class="save-state" id="save-state">
+        <span class="dot"></span><span id="save-text">已保存至表格</span>
+        <button class="retry" id="btn-retry-save" style="display:none">重试</button>
+      </div>
+      <div class="mini">
+        <button id="btn-refresh" title="重新读取数据">刷新数据</button>
+        <button id="btn-swap-file" title="选择另一份表格文件（.xlsx / .xlsm）">更换表格</button>
+        <button id="btn-reload" title="放弃网页端修改前需先保存；用于你在 Excel 里手改了表格之后同步进网页">从表格重载</button>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="page-head" id="page-head">
+      <button id="menu-btn">☰</button>
+      <div>
+        <h2 id="page-title">数据大屏</h2>
+        <div class="desc" id="page-desc"></div>
+      </div>
+      <div class="actions" id="page-actions"></div>
+    </div>
+
+    <section id="view-dashboard"></section>
+    <section id="view-members" style="display:none"></section>
+    <section id="view-records" style="display:none"></section>
+    <section id="view-versions" style="display:none"></section>
+  </main>
+</div>
+
+<div class="drawer-mask" id="drawer-mask"></div>
+<div class="drawer" id="drawer"></div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<button id="theme-toggle" title="切换 白日 / 黑夜模式" aria-label="切换主题">
+  <svg class="ti-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M19.4 4.6l-1.8 1.8M6.4 17.6l-1.8 1.8"/></svg>
+  <svg class="ti-moon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+  <span class="lbl-to-day">白日模式</span>
+  <span class="lbl-to-night">黑夜模式</span>
+</button>
+
+<script>
+"use strict";
+/* ==================================================================== */
+const S = {
+  data: null,
+  view: "dashboard",
+  range: null, // 大屏统计时间范围 {start, end}
+  filters: { q: "", status: "", card: "", teacher: "", pStart: "", pEnd: "" },
+  recFilters: { q: "", range: "all" },
+  drawerMember: null,
+};
+
+const $ = (s, el) => (el || document).querySelector(s);
+const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtMoney = v => "¥" + (Math.round((v || 0) * 100) / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtInt = v => (Math.round(v || 0)).toLocaleString("zh-CN");
+const today = () => S.data?.dashboard?.today || new Date().toISOString().slice(0, 10);
+
+const STATUS_META = {
+  "正常":    { cls: "normal",   color: "#3ddbb0" },
+  "预警客户": { cls: "warning",  color: "#fbbf24" },
+  "沉睡客户": { cls: "sleeping", color: "#f87171" },
+  "待开卡":  { cls: "pending",  color: "#6096ff" },
+  "已到期":  { cls: "expired",  color: "#94a3b8" },
+  "退卡":    { cls: "refund",   color: "#64748b" },
+};
+const statusPill = st => {
+  const m = STATUS_META[st] || { cls: "expired", color: "#94a3b8" };
+  return `<span class="pill ${m.cls}">${esc(st)}</span>`;
+};
+
+/* ---------------------------------------------------------------- api */
+async function api(path, body, method) {
+  const opt = { method: method || (body ? "POST" : "GET"), headers: {} };
+  if (body) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
+  const r = await fetch(path, opt);
+  let j = null;
+  try { j = await r.json(); } catch (e) {}
+  if (!r.ok || (j && j.ok === false)) throw new Error((j && j.error) || ("请求失败 " + r.status));
+  return j;
+}
+
+async function refresh(keepDrawer) {
+  const j = await api("/api/data");
+  S.data = j.data;
+  render();
+  if (!keepDrawer) closeDrawer();
+}
+
+/* ---------------------------------------------------------------- toast */
+function toast(msg, type) {
+  const el = document.createElement("div");
+  el.className = "toast " + (type || "ok");
+  const icon = type === "err" ? "✕" : type === "warn" ? "⚠" : "✓";
+  el.innerHTML = `<span class="ti">${icon}</span><span>${esc(msg)}</span>`;
+  $("#toast-root").appendChild(el);
+  setTimeout(() => { el.classList.add("fade-out"); setTimeout(() => el.remove(), 350); }, type === "warn" ? 5200 : 3200);
+}
+
+/* ---------------------------------------------------------------- nav */
+$("#nav").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.view = b.dataset.view;
+  $$("#nav button").forEach(x => x.classList.toggle("active", x === b));
+  $("#sidebar").classList.remove("open");
+  render();
+});
+$("#menu-btn").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+
+/* ==================================================================== */
+/* DASHBOARD（支持自定义统计时间范围）                                    */
+/* ==================================================================== */
+const localISO = dd => dd.getFullYear() + "-" + String(dd.getMonth() + 1).padStart(2, "0") + "-" + String(dd.getDate()).padStart(2, "0");
+function addDays(ds, n) { const d = new Date(ds + "T00:00:00"); d.setDate(d.getDate() + n); return localISO(d); }
+
+function presetRanges() {
+  const t = today();
+  const monthStart = t.slice(0, 8) + "01";
+  const prevEnd = addDays(monthStart, -1);            // 上月最后一天
+  const prevStart = prevEnd.slice(0, 8) + "01";       // 上月第一天
+  let minDate = t;
+  S.data.classes.forEach(c => { if (c.date && c.date < minDate) minDate = c.date; });
+  return [
+    { k: "today",  l: "今天",   s: t,               e: t },
+    { k: "yday",   l: "昨天",   s: addDays(t, -1),  e: addDays(t, -1) },
+    { k: "d7",     l: "近7天",  s: addDays(t, -6),  e: t },
+    { k: "d30",    l: "近30天", s: addDays(t, -29), e: t },
+    { k: "month",  l: "本月",   s: monthStart,      e: t },
+    { k: "pmonth", l: "上月",   s: prevStart,       e: prevEnd },
+    { k: "all",    l: "全部",   s: minDate,         e: t },
+  ];
+}
+
+function rangeStats(cs, start, end) {
+  const list = cs.filter(c => c.valid && c.date && c.date >= start && c.date <= end);
+  return {
+    list,
+    count: list.length,
+    effect: list.filter(c => c.effect).length,
+    rev: list.reduce((a, c) => a + (c.unit_price || 0), 0),
+  };
+}
+
+function rangeIncome(ms, start, end) {
+  const list = ms.filter(m => m.purchase_date && m.purchase_date >= start && m.purchase_date <= end);
+  return {
+    list,
+    count: list.length,
+    amount: list.reduce((a, m) => a + (m.amount || 0), 0),
+  };
+}
+
+function buildTrendData(cs, start, end) {
+  const s = new Date(start + "T00:00:00"), e = new Date(end + "T00:00:00");
+  const days = Math.round((e - s) / 864e5) + 1;
+  const revOf = list => list.reduce((a, c) => a + (c.unit_price || 0), 0);
+  const t = [];
+  if (days <= 62) {                       // 逐日
+    for (let i = 0; i < days; i++) {
+      const ds = addDays(start, i);
+      const cl = cs.filter(c => c.date === ds && c.valid);
+      t.push({ label: ds.slice(5).replace("-", "/"), ds, count: cl.length, rev: revOf(cl) });
+    }
+  } else {                                // 跨度太长，按月聚合
+    let cur = new Date(s.getFullYear(), s.getMonth(), 1);
+    const endM = new Date(e.getFullYear(), e.getMonth(), 1);
+    while (cur <= endM) {
+      const prefix = cur.getFullYear() + "-" + String(cur.getMonth() + 1).padStart(2, "0");
+      const cl = cs.filter(c => (c.date || "").startsWith(prefix) && c.valid);
+      t.push({ label: cur.getFullYear() + "/" + (cur.getMonth() + 1), ds: prefix, count: cl.length, rev: revOf(cl) });
+      cur.setMonth(cur.getMonth() + 1);
+    }
+  }
+  return t;
+}
+
+function renderDashboard() {
+  const d = S.data.dashboard, ms = S.data.members, cs = S.data.classes;
+  if (!S.range) S.range = { start: d.today, end: d.today };
+  let { start, end } = S.range;
+  if (start > end) { const tmp = start; start = end; end = tmp; S.range = { start, end }; }
+  const rs = rangeStats(cs, start, end);
+  const inc = rangeIncome(ms, start, end);
+  const presets = presetRanges();
+  const dayCount = Math.round((new Date(end + "T00:00:00") - new Date(start + "T00:00:00")) / 864e5) + 1;
+  const monthStart = d.today.slice(0, 8) + "01";
+
+  /* 耗课卡片文案随范围变化 */
+  let revLabel = "区间耗课", revSub = `${start} ~ ${end} 耗课金额 · ${rs.count} 人次`;
+  if (start === d.today && end === d.today) { revLabel = "今日耗课"; revSub = `今日耗课金额 · ${rs.count} 人次`; }
+  else if (start === monthStart && end === d.today) { revLabel = "本月耗课"; revSub = `本月累计耗课 · ${rs.count} 人次`; }
+
+  /* 营收（办卡收入）卡片文案随范围变化 */
+  let incLabel = "区间营收", incSub = `${start} ~ ${end} 办卡金额 · ${inc.count} 笔`;
+  if (start === d.today && end === d.today) { incLabel = "今日营收"; incSub = `今日办卡金额 · ${inc.count} 笔`; }
+
+  const kpiCard = k => `<div class="kpi ${k.money ? "money" : ""} ${k.big ? "big" : ""}" data-kpi="${k.key}" style="cursor:pointer" title="点击查看明细">
+      <div class="glow" style="background:${k.c}"></div>
+      <div class="k-label"><span class="kd" style="background:${k.c}"></span>${k.l}</div>
+      <div class="k-value" data-count>${k.v}</div>
+      <div class="k-sub">${k.s}</div>
+    </div>`;
+  /* 门店客户状态（9 项） */
+  const statusKpis = [
+    { key: "total", l: "总客户数", v: fmtInt(d.total), s: "档案中会员卡记录总数", c: "#a78bfa" },
+    { key: "valid_period", l: "有效期客户", v: fmtInt(d.valid_period), s: "卡在有效期内（未退卡）", c: "#3ddbb0" },
+    { key: "expired", l: "已到期", v: fmtInt(d.expired), s: "次卡耗尽或期限过期", c: "#94a3b8" },
+    { key: "period_card", l: "期限卡客户", v: fmtInt(d.period_card), s: "按时段计费的会员卡", c: "#6096ff" },
+    { key: "session_card", l: "次卡客户", v: fmtInt(d.session_card), s: "按次数计费的会员卡", c: "#f0a6c0" },
+    { key: "pending", l: "待开卡客户", v: fmtInt(d.pending), s: "已购卡但尚未开卡", c: "#6096ff" },
+    { key: "normal", l: "正常客户", v: fmtInt(d.normal), s: "连续未到 &lt; 7 天", c: "#3ddbb0" },
+    { key: "warning", l: "预警客户", v: fmtInt(d.warning), s: "连续未到 7–9 天", c: "#fbbf24" },
+    { key: "sleeping", l: "沉睡客户", v: fmtInt(d.sleeping), s: "连续未到 ≥ 10 天", c: "#f87171" },
+    { key: "refunded", l: "退卡客户", v: fmtInt(d.refunded), s: "已办理退卡", c: "#64748b" },
+  ].map(kpiCard).join("");
+  /* 门店收支状态（5 项） */
+  const moneyKpis = [
+    { key: "range_income", l: incLabel, v: fmtMoney(inc.amount), s: incSub, c: "#22c55e", money: 1 },
+    { key: "month_income", l: "本月营收", v: fmtMoney(d.month_income), s: "本月办卡金额（固定口径）", c: "#14b8a6", money: 1 },
+    { key: "range_revenue", l: revLabel, v: fmtMoney(rs.rev), s: revSub, c: "#f2c14e", money: 1 },
+    { key: "month_revenue", l: "本月耗课", v: fmtMoney(d.month_revenue), s: "本月累计耗课金额（固定口径）", c: "#f2c14e", money: 1 },
+    { key: "liability", l: "累计负债", v: fmtMoney(d.liability), s: "全部在卡会员剩余课程总额", c: "#f87171", money: 1, big: 1 },
+  ].map(kpiCard).join("");
+
+  /* status donut */
+  const st = [
+    { label: "正常", value: d.normal, color: "#3ddbb0" },
+    { label: "预警", value: d.warning, color: "#fbbf24" },
+    { label: "沉睡", value: d.sleeping, color: "#f87171" },
+    { label: "待开卡", value: d.pending, color: "#6096ff" },
+    { label: "已到期", value: d.expired, color: "#94a3b8" },
+    { label: "退卡", value: d.refunded, color: "#64748b" },
+  ];
+  /* card donut */
+  const ct = [
+    { label: "期限卡", value: d.period_card, color: "#6096ff" },
+    { label: "次卡", value: d.session_card, color: "#f0a6c0" },
+    { label: "退卡", value: d.refunded, color: "#64748b" },
+  ];
+  /* trend: 所选范围 */
+  const t = buildTrendData(cs, start, end);
+  /* teacher perf: 所选范围 */
+  const tp = {};
+  rs.list.forEach(c => {
+    const k = c.teacher || "未分配";
+    tp[k] = tp[k] || { count: 0, rev: 0 };
+    tp[k].count++; tp[k].rev += c.unit_price || 0;
+  });
+  const teachers = Object.entries(tp).map(([k, v]) => ({ label: k, ...v }))
+    .sort((a, b) => b.rev - a.rev).slice(0, 8);
+
+  /* sleeping alert list */
+  const sleepTop = ms.filter(m => m.status === "沉睡客户" && !m.refund)
+    .sort((a, b) => (b.days_absent ?? 99999) - (a.days_absent ?? 99999)).slice(0, 8);
+
+  $("#view-dashboard").innerHTML = `
+    <div class="range-bar">
+      <span class="rb-title">⏱ 统计时间范围</span>
+      <input type="date" class="input" id="rg-start" value="${start}">
+      <span class="rb-sep">至</span>
+      <input type="date" class="input" id="rg-end" value="${end}">
+      <div class="seg" id="rg-presets">${presets.map(p =>
+        `<button data-k="${p.k}" class="${start === p.s && end === p.e ? "on" : ""}">${p.l}</button>`).join("")}</div>
+      <span class="rb-info">共 <b>${dayCount}</b> 天 · <b>${rs.count}</b> 次课 · 耗课 <b>${fmtMoney(rs.rev)}</b>${rs.effect ? ` · 效果图 ${rs.effect} 张` : ""}</span>
+    </div>
+    <div class="panel" style="margin-bottom:14px"><h3>门店客户状态</h3><div class="kpi-grid" style="margin-bottom:0">${statusKpis}</div></div>
+    <div class="panel" style="margin-bottom:14px"><h3>门店收支状态</h3><div class="kpi-grid" style="margin-bottom:0">${moneyKpis}</div></div>
+    <div class="chart-row">
+      <div class="panel"><h3>客户状态分布</h3>${donut(st)}</div>
+      <div class="panel"><h3>卡种结构</h3>${donut(ct)}</div>
+      <div class="panel"><h3>所选范围上课与耗课金额<span class="hint">柱：人次　线：金额</span></h3>${trendChart(t)}</div>
+    </div>
+    <div class="chart-row2">
+      <div class="panel"><h3>老师耗课业绩（所选范围）<span class="hint">耗课金额 / 上课人次</span></h3>${hbars(teachers)}</div>
+      <div class="panel"><h3>沉睡预警 · 待跟进<span class="hint">连续 ≥10 天未上课</span></h3>
+        ${sleepTop.length ? `<table class="tbl"><thead><tr><th>会员</th><th>老师</th><th>卡种</th><th class="num">未到天数</th><th>剩余</th></tr></thead><tbody>
+          ${sleepTop.map(m => `<tr data-member="${esc(m.id)}">
+            <td><b>${esc(m.name)}</b> <span class="muted">${esc(m.id)}</span></td>
+            <td>${esc(m.teacher)}</td><td>${cardTag(m.card_type)}</td>
+            <td class="num" style="color:var(--red);font-weight:700">${m.days_absent == null ? "从未上课" : m.days_absent + " 天"}</td>
+            <td>${m.card_type === "次卡" ? "余 " + m.remaining_sessions + " 次" : "余 " + m.remaining_days + " 天"}</td>
+          </tr>`).join("")}</tbody></table>` : `<div class="empty">暂无沉睡客户 🎉</div>`}
+      </div>
+    </div>`;
+
+  /* 范围交互（起止可同一天；倒序自动纠正） */
+  const applyRange = (s, e2) => {
+    if (!s || !e2) { toast("请选择完整的起始和终止日期", "err"); renderDashboard(); return; }
+    if (s > e2) { const tmp = s; s = e2; e2 = tmp; }
+    S.range = { start: s, end: e2 };
+    renderDashboard();
+  };
+  $("#rg-start").addEventListener("change", e => applyRange(e.target.value, S.range.end));
+  $("#rg-end").addEventListener("change", e => applyRange(S.range.start, e.target.value));
+  $("#rg-presets").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const p = presets.find(x => x.k === b.dataset.k);
+    S.range = { start: p.s, end: p.e };
+    renderDashboard();
+  });
+
+  $$("#view-dashboard [data-kpi]").forEach(el =>
+    el.addEventListener("click", () => openKpiDetail(el.dataset.kpi)));
+  $$("#view-dashboard tbody tr[data-member]").forEach(tr =>
+    tr.addEventListener("click", () => openDrawer(tr.dataset.member)));
+}
+
+/* ---------- svg charts ---------- */
+function donut(segs) {
+  const total = segs.reduce((a, s) => a + s.value, 0) || 1;
+  const R = 62, C = 2 * Math.PI * R;
+  let off = 0, arcs = "";
+  segs.forEach(s => {
+    const len = s.value / total * C;
+    if (s.value > 0) arcs += `<circle cx="85" cy="85" r="${R}" fill="none" stroke="${s.color}" stroke-width="21"
+      stroke-dasharray="${len} ${C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 85 85)" stroke-linecap="butt" opacity=".92"/>`;
+    off += len;
+  });
+  return `<div class="donut-wrap">
+    <svg width="170" height="170" viewBox="0 0 170 170">
+      <circle cx="85" cy="85" r="${R}" fill="none" style="stroke:var(--chart-track)" stroke-width="21"/>
+      ${arcs}
+      <text x="85" y="80" text-anchor="middle" style="fill:var(--text)" font-size="26" font-weight="800">${total}</text>
+      <text x="85" y="102" text-anchor="middle" style="fill:var(--muted)" font-size="11">会员卡数</text>
+    </svg>
+    <div class="legend">${segs.map(s => `
+      <div class="li"><span class="sw" style="background:${s.color}"></span>${s.label}
+        <b>${s.value}</b><span class="pct">${(s.value / total * 100).toFixed(0)}%</span></div>`).join("")}
+    </div></div>`;
+}
+
+function trendChart(t) {
+  const W = 640, H = 210, PL = 44, PR = 56, PT = 18, PB = 30;
+  const iw = W - PL - PR, ih = H - PT - PB;
+  const maxC = Math.max(4, ...t.map(x => x.count));
+  const maxR = Math.max(1, ...t.map(x => x.rev));
+  const bw = Math.max(3, Math.min(26, iw / t.length * 0.52));
+  const step = iw / t.length;
+  const skip = t.length > 20 ? Math.ceil(t.length / 12) : 1;   // 标签抽稀
+  const yC = v => PT + ih - v / maxC * ih;
+  const yR = v => PT + ih - v / maxR * ih;
+  let bars = "", line = "", labels = "";
+  t.forEach((x, i) => {
+    const cx = PL + step * i + step / 2;
+    const h = x.count / maxC * ih;
+    bars += `<rect x="${cx - bw / 2}" y="${yC(x.count)}" width="${bw}" height="${Math.max(h, x.count ? 2 : 0)}" rx="${Math.min(3.5, bw / 2)}"
+      fill="url(#gv)" opacity="${x.ds === today() ? 1 : .78}"/>`;
+    if (x.count && t.length <= 35) bars += `<text x="${cx}" y="${yC(x.count) - 6}" text-anchor="middle" style="fill:var(--muted)" font-size="9.5">${x.count}</text>`;
+    if (i % skip === 0) labels += `<text x="${cx}" y="${H - 10}" text-anchor="middle" style="fill:var(--muted)" font-size="9.5">${x.label}</text>`;
+  });
+  const pts = t.map((x, i) => [PL + step * i + step / 2, yR(x.rev)]);
+  const path = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  line = `<path d="${path}" fill="none" style="stroke:var(--gold)" stroke-width="2.2" stroke-linejoin="round"/>` +
+    pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="3" style="fill:var(--gold)"/>`).join("");
+  const gridY = [0, .5, 1];
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
+    <defs><linearGradient id="gv" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" style="stop-color:var(--bar1)"/><stop offset="1" style="stop-color:var(--bar2);stop-opacity:.35"/>
+    </linearGradient></defs>
+    ${gridY.map(g => `<line x1="${PL}" x2="${W - PR}" y1="${PT + ih * g}" y2="${PT + ih * g}" style="stroke:var(--grid-line)" stroke-width="1"/>
+      <text x="${PL - 8}" y="${PT + ih * g + 4}" text-anchor="end" style="fill:var(--axis-muted)" font-size="9.5">${Math.round(maxC * (1 - g))}</text>
+      <text x="${W - PR + 8}" y="${PT + ih * g + 4}" style="fill:var(--axis-amber)" font-size="9.5">¥${Math.round(maxR * (1 - g))}</text>`).join("")}
+    ${bars}${labels}${line}
+  </svg>`;
+}
+
+function hbars(items) {
+  if (!items.length) return `<div class="empty">暂无上课记录</div>`;
+  const max = Math.max(...items.map(i => i.rev)) || 1;
+  return items.map(i => `
+    <div style="margin-bottom:13px">
+      <div style="display:flex;font-size:12.5px;margin-bottom:5px">
+        <span>${esc(i.label)}</span>
+        <span style="margin-left:auto" class="muted">${i.count} 人次</span>
+        <b style="margin-left:14px;color:var(--gold)">${fmtMoney(i.rev)}</b>
+      </div>
+      <div style="height:9px;border-radius:99px;background:var(--chart-track);overflow:hidden">
+        <div style="height:100%;width:${(i.rev / max * 100).toFixed(1)}%;border-radius:99px;background:linear-gradient(90deg,var(--bar2),var(--bar1))"></div>
+      </div>
+    </div>`).join("");
+}
+
+const cardTag = t => `<span class="card-tag ${esc(t)}">${esc(t)}</span>`;
+
+/* ==================================================================== */
+/* MEMBERS VIEW                                                          */
+/* ==================================================================== */
+function renderMembers() {
+  const ms = S.data.members;
+  const teachers = [...new Set(ms.map(m => m.teacher).filter(Boolean))];
+  const el = $("#view-members");
+  if (!el.dataset.built) {
+    el.dataset.built = 1;
+    el.innerHTML = `
+      <div class="toolbar">
+        <input class="input" id="f-q" placeholder="搜索 姓名 / 编号 / 手机号">
+        <select class="select" id="f-status">
+          <option value="">全部状态</option>${Object.keys(STATUS_META).map(s => `<option>${s}</option>`).join("")}
+        </select>
+        <select class="select" id="f-card"><option value="">全部卡种</option><option>次卡</option><option>期限卡</option></select>
+        <select class="select" id="f-teacher"><option value="">全部老师</option>${teachers.map(t => `<option>${esc(t)}</option>`).join("")}</select>
+        <span class="muted" style="font-size:12.5px;white-space:nowrap">购买日期</span>
+        <input class="input" type="date" id="f-pstart" style="width:150px" title="购买日期 起">
+        <span class="muted">~</span>
+        <input class="input" type="date" id="f-pend" style="width:150px" title="购买日期 止">
+        <button class="btn" id="f-pclear" title="清除购买日期筛选" style="padding:7px 10px">清</button>
+        <div class="sp"></div>
+        <span class="muted" id="f-count" style="font-size:12.5px"></span>
+        <button class="btn primary" id="btn-add-member">＋ 新增客户 / 办卡</button>
+      </div>
+      <div class="panel" style="padding:0;overflow:auto;max-height:calc(100vh - 210px)">
+        <table class="tbl"><thead><tr>
+          <th>编号</th><th>姓名</th><th>手机号</th><th>负责老师</th><th>类型</th><th>卡种</th><th>购买日期</th>
+          <th>开卡日期</th><th>有效期至</th><th class="num">实收金额</th><th class="num">尾款</th>
+          <th class="num">剩余次数</th><th class="num">剩余天数</th>
+          <th class="num">剩余课程金额</th><th>最后上课</th><th>状态</th>
+        </tr></thead><tbody id="m-tbody"></tbody></table>
+      </div>`;
+    $("#f-q").addEventListener("input", e => { S.filters.q = e.target.value; renderMemberRows(); });
+    $("#f-status").addEventListener("change", e => { S.filters.status = e.target.value; renderMemberRows(); });
+    $("#f-card").addEventListener("change", e => { S.filters.card = e.target.value; renderMemberRows(); });
+    $("#f-teacher").addEventListener("change", e => { S.filters.teacher = e.target.value; renderMemberRows(); });
+    $("#f-pstart").addEventListener("change", e => { S.filters.pStart = e.target.value; renderMemberRows(); });
+    $("#f-pend").addEventListener("change", e => { S.filters.pEnd = e.target.value; renderMemberRows(); });
+    $("#f-pclear").addEventListener("click", () => { S.filters.pStart = ""; S.filters.pEnd = ""; $("#f-pstart").value = ""; $("#f-pend").value = ""; renderMemberRows(); });
+    $("#btn-add-member").addEventListener("click", () => openMemberModal());
+  }
+  renderMemberRows();
+}
+
+function renderMemberRows() {
+  const { q, status, card, teacher, pStart, pEnd } = S.filters;
+  const qn = q.trim().toLowerCase();
+  let ms = S.data.members.filter(m =>
+    (!status || m.status === status) &&
+    (!card || m.card_type === card) &&
+    (!teacher || m.teacher === teacher) &&
+    (!pStart || (m.purchase_date || "") >= pStart) &&
+    (!pEnd || (m.purchase_date || "") <= pEnd) &&
+    (!qn || m.name.toLowerCase().includes(qn) || m.id.toLowerCase().includes(qn) || m.phone.includes(qn)));
+  ms.sort((a, b) => a.id.localeCompare(b.id, "zh", { numeric: true }));
+  $("#f-count").textContent = `${ms.length} / ${S.data.members.length} 位会员`;
+  const tb = $("#m-tbody");
+  tb.innerHTML = ms.length ? ms.map(m => `
+    <tr data-member="${esc(m.id)}">
+      <td><span class="badge">${esc(m.id)}</span></td>
+      <td><b>${esc(m.name)}</b></td>
+      <td class="mono">${esc(m.phone)}</td>
+      <td>${esc(m.teacher)}</td><td>${esc(m.member_type)}</td><td>${cardTag(m.card_type)}</td>
+      <td class="mono">${esc(m.purchase_date || "—")}</td>
+      <td class="mono">${esc(m.activation_date || "—")}</td>
+      <td class="mono">${esc(m.expiry_date || "—")}</td>
+      <td class="num">${m.amount != null ? fmtMoney(m.amount) : "—"}</td>
+      <td class="num"${m.receivable != null && m.balance_due > 0 ? ' style="color:var(--red);font-weight:700"' : ""}>${m.receivable != null ? fmtMoney(m.balance_due) : "—"}</td>
+      <td class="num">${m.card_type === "次卡" ? m.remaining_sessions : "—"}</td>
+      <td class="num">${m.card_type === "期限卡" ? m.remaining_days : "—"}</td>
+      <td class="num gold-t">${m.refund ? "—" : fmtMoney(m.remaining_value)}</td>
+      <td class="mono">${m.last_class ? esc(m.last_class) + (m.days_absent != null ? ` <span class="muted">(${m.days_absent}天前)</span>` : "") : '<span class="muted">从未上课</span>'}</td>
+      <td>${statusPill(m.status)}</td>
+    </tr>`).join("") : `<tr><td colspan="16"><div class="empty">没有符合条件的会员</div></td></tr>`;
+  $$("#m-tbody tr[data-member]").forEach(tr =>
+    tr.addEventListener("click", () => openDrawer(tr.dataset.member)));
+}
+
+/* ==================================================================== */
+/* RECORDS VIEW                                                          */
+/* ==================================================================== */
+function renderRecords() {
+  const cs = S.data.classes;
+  const el = $("#view-records");
+  if (!el.dataset.built) {
+    el.dataset.built = 1;
+    el.innerHTML = `
+      <div class="toolbar">
+        <input class="input" id="r-q" placeholder="搜索 会员姓名 / 编号 / 课程">
+        <div class="seg" id="r-range">
+          <button data-r="today">今天</button><button data-r="7">近7天</button><button data-r="30">近30天</button><button data-r="all" class="on">全部</button>
+        </div>
+        <div class="sp"></div>
+        <span class="muted" id="r-count" style="font-size:12.5px"></span>
+        <button class="btn primary" id="btn-add-class">＋ 添加上课记录</button>
+      </div>
+      <div class="panel" style="padding:0;overflow:auto;max-height:calc(100vh - 210px)">
+        <table class="tbl"><thead><tr>
+          <th>#</th><th>日期</th><th>时间</th><th>会员</th><th>老师</th><th>类型</th><th>卡种</th>
+          <th class="num">课程单价</th><th>课程名称</th><th>效果图</th><th>备注</th><th></th>
+        </tr></thead><tbody id="r-tbody"></tbody></table>
+      </div>`;
+    $("#r-q").addEventListener("input", e => { S.recFilters.q = e.target.value; renderRecordRows(); });
+    $("#r-range").addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      S.recFilters.range = b.dataset.r;
+      $$("#r-range button").forEach(x => x.classList.toggle("on", x === b));
+      renderRecordRows();
+    });
+    $("#btn-add-class").addEventListener("click", () => openClassModal());
+  }
+  renderRecordRows();
+}
+
+function renderRecordRows() {
+  const { q, range } = S.recFilters;
+  const qn = q.trim().toLowerCase();
+  const t0 = today(), base = new Date(t0 + "T00:00:00");
+  let cs = S.data.classes.filter(c => {
+    if (qn && !(c.member_name.toLowerCase().includes(qn) || c.member_id.toLowerCase().includes(qn) || (c.course || "").toLowerCase().includes(qn))) return false;
+    if (range === "today") return c.date === t0;
+    if (range !== "all") {
+      const dd = new Date(c.date + "T00:00:00");
+      return (base - dd) / 864e5 < Number(range);
+    }
+    return true;
+  }).sort((a, b) => (b.date + (b.time || "")).localeCompare(a.date + (a.time || "")) || a.row - b.row);
+  $("#r-count").textContent = `${cs.length} 条记录`;
+  $("#r-tbody").innerHTML = cs.length ? cs.map(c => `
+    <tr data-member="${esc(c.member_id)}">
+      <td class="muted">${esc(String(c.seq ?? ""))}</td>
+      <td class="mono">${esc(c.date || "")}</td><td class="mono">${esc(c.time || "")}</td>
+      <td><b>${esc(c.member_name)}</b> <span class="muted">${esc(c.member_id)}</span></td>
+      <td>${esc(c.teacher)}</td><td>${esc(c.member_type)}</td><td>${cardTag(c.card_type)}</td>
+      <td class="num gold-t">${c.unit_price != null ? fmtMoney(c.unit_price) : "—"}</td>
+      <td>${esc(c.course || "—")}</td>
+      <td>${c.effect ? '<span style="color:var(--teal)">✓</span>' : '<span class="muted">—</span>'}</td>
+      <td class="muted">${esc(c.remark || "—")}</td>
+      <td><button class="link danger" data-del="${c.row}">删除</button></td>
+    </tr>`).join("") : `<tr><td colspan="12"><div class="empty">没有符合条件的上课记录</div></td></tr>`;
+  $$("#r-tbody tr[data-member]").forEach(tr => {
+    tr.addEventListener("click", e => { if (e.target.closest("[data-del]")) return; openDrawer(tr.dataset.member); });
+  });
+  $$("#r-tbody [data-del]").forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    const row = Number(b.dataset.del);
+    confirmModal("删除上课记录", "确定删除这条上课记录吗？删除后剩余次数 / 最后上课日期等关联数据会自动联动更新。", async () => {
+      const j = await api("/api/classes/delete", { row });
+      afterMutation(j, "上课记录已删除");
+    });
+  }));
+}
+
+/* ==================================================================== */
+/* DRAWER（会员详情）                                                      */
+/* ==================================================================== */
+function openDrawer(mid) {
+  const m = S.data.members.find(x => x.id === mid);
+  if (!m) return;
+  S.drawerMember = m;
+  const cs = S.data.classes.filter(c => c.member_id === mid)
+    .sort((a, b) => (b.date + (b.time || "")).localeCompare(a.date + (a.time || "")));
+  const personCards = S.data.members.filter(x => x.name === m.name || normPhone(x.phone) === normPhone(m.phone));
+
+  let prog = "";
+  if (m.card_type === "次卡" && m.total_sessions) {
+    const p = Math.min(100, m.remaining_sessions / m.total_sessions * 100);
+    prog = `<div class="sub-title">剩余次数</div>
+      <div style="font-size:22px;font-weight:800">${m.remaining_sessions} <span class="muted" style="font-size:13px">/ ${m.total_sessions} 次</span></div>
+      <div class="progress"><i style="width:${p}%"></i></div>
+      <div class="muted" style="font-size:12px">已消耗 ${m.consumed} 次 · 课程单价 ${fmtMoney(m.unit_price || 0)}</div>`;
+  } else if (m.card_type === "期限卡") {
+    const startD = m.activation_date || m.purchase_date;
+    const total = startD && m.expiry_date ? Math.max(1, Math.round((new Date(m.expiry_date) - new Date(startD)) / 864e5)) : 0;
+    const p = total ? Math.min(100, m.remaining_days / total * 100) : 0;
+    prog = `<div class="sub-title">剩余天数</div>
+      <div style="font-size:22px;font-weight:800">${m.remaining_days} <span class="muted" style="font-size:13px">天</span></div>
+      <div class="progress"><i style="width:${p}%"></i></div>
+      <div class="muted" style="font-size:12px">有效期至 ${esc(m.expiry_date || "—")} · 日均 ${fmtMoney(m.unit_price || 0)}</div>`;
+  }
+
+  $("#drawer").innerHTML = `
+    <div class="drawer-head">
+      <div class="row1">
+        <div>
+          <h3>${esc(m.name)} <span class="mid" style="font-weight:400">${esc(m.id)}</span></h3>
+          <div class="mid" style="margin-top:6px;display:flex;gap:8px;align-items:center">
+            ${statusPill(m.status)} ${cardTag(m.card_type)}
+            ${m.refund ? '<span class="pill refund">已退卡</span>' : ""}
+          </div>
+        </div>
+        <button class="close" id="drawer-close">×</button>
+      </div>
+    </div>
+    <div class="drawer-body">
+      ${prog}
+      <div class="sub-title">基础资料</div>
+      <div class="info-grid">
+        <div class="cell"><div class="lbl">手机号</div><div class="val mono">${esc(m.phone || "—")}</div></div>
+        <div class="cell"><div class="lbl">负责老师</div><div class="val">${esc(m.teacher || "—")}</div></div>
+        <div class="cell"><div class="lbl">会员类型</div><div class="val">${esc(m.member_type || "—")}</div></div>
+        <div class="cell"><div class="lbl">卡种</div><div class="val">${esc(m.card_type)}</div></div>
+        <div class="cell"><div class="lbl">购买日期</div><div class="val mono">${esc(m.purchase_date || "—")}</div></div>
+        <div class="cell"><div class="lbl">开卡日期</div><div class="val mono">${esc(m.activation_date || "未开卡")}</div></div>
+        <div class="cell"><div class="lbl">有效期至</div><div class="val mono">${esc(m.expiry_date || "—")}</div></div>
+        <div class="cell"><div class="lbl">实收金额</div><div class="val">${fmtMoney(m.amount || 0)}</div></div>
+        <div class="cell"><div class="lbl">应收金额</div><div class="val">${m.receivable != null ? fmtMoney(m.receivable) : "—"}</div></div>
+        <div class="cell"><div class="lbl">尾款</div><div class="val"${m.receivable != null && m.balance_due > 0 ? ' style="color:var(--red)"' : ""}>${m.receivable != null ? fmtMoney(m.balance_due) : "—"}</div></div>
+        <div class="cell"><div class="lbl">总次数</div><div class="val">${m.total_sessions ?? "—"}</div></div>
+        <div class="cell"><div class="lbl">已消耗次数</div><div class="val">${m.consumed} 次</div></div>
+        <div class="cell"><div class="lbl">剩余课程金额</div><div class="val gold-t">${m.refund ? "—" : fmtMoney(m.remaining_value)}</div></div>
+        <div class="cell"><div class="lbl">最后上课日期</div><div class="val mono">${m.last_class ? esc(m.last_class) : "从未上课"}</div></div>
+        <div class="cell"><div class="lbl">连续未到</div><div class="val">${m.last_class ? (m.days_absent + " 天") : "从未上课"}</div></div>
+        <div class="cell wide"><div class="lbl">备注</div><div class="val" style="font-weight:400;white-space:pre-wrap">${esc(m.remark || "—")}</div></div>
+      </div>
+      ${personCards.length > 1 ? `<div class="form-tip">该客户名下共 <b>${personCards.length}</b> 张卡：${personCards.map(c => esc(c.id)).join("、")}</div>` : ""}
+      <div class="sub-title">上课记录（${cs.length}）</div>
+      <div style="border:1px solid var(--border);border-radius:12px;overflow:auto">
+        <table class="tbl" style="font-size:12.5px"><thead><tr><th>日期</th><th>时间</th><th>课程</th><th class="num">单价</th><th>效果</th></tr></thead>
+        <tbody>${cs.length ? cs.map(c => `<tr style="cursor:default">
+          <td class="mono">${esc(c.date)}</td><td class="mono">${esc(c.time || "")}</td>
+          <td>${esc(c.course || "—")}</td>
+          <td class="num gold-t">${c.unit_price != null ? fmtMoney(c.unit_price) : "—"}</td>
+          <td>${c.effect ? '<span style="color:var(--teal)">✓</span>' : "—"}</td></tr>`).join("") :
+          `<tr><td colspan="5"><div class="empty">暂无上课记录</div></td></tr>`}</tbody></table>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn primary" id="d-add-class">＋ 添加上课</button>
+      <button class="btn" id="d-edit">编辑资料</button>
+      <button class="btn ${m.refund ? "" : "danger"}" id="d-refund">${m.refund ? "恢复为有效" : "标记退卡"}</button>
+    </div>`;
+
+  $("#drawer-close").addEventListener("click", closeDrawer);
+  $("#d-add-class").addEventListener("click", () => openClassModal(m.id));
+  $("#d-edit").addEventListener("click", () => openMemberModal(null, m));
+  $("#d-refund").addEventListener("click", () => {
+    if (m.refund) {
+      api("/api/members/update", { id: m.id, fields: { refund: false } })
+        .then(j => afterMutation(j, `${m.name} 已恢复为有效会员`))
+        .catch(e => toast(e.message, "err"));
+    } else {
+      confirmModal("标记退卡", `确定将 <b>${esc(m.name)}</b>（${esc(m.id)}）标记为退卡吗？<br><span class="muted">退卡后：该会员不再计入有效期/正常/预警/沉睡等统计，也不计入门店负债；上课记录保留，可在详情里恢复。</span>`, async () => {
+        const j = await api("/api/members/update", { id: m.id, fields: { refund: true } });
+        afterMutation(j, `${m.name} 已标记退卡`);
+      });
+    }
+  });
+  $("#drawer").classList.add("show");
+  $("#drawer-mask").classList.add("show");
+}
+function closeDrawer() {
+  S.drawerMember = null;
+  $("#drawer").classList.remove("show");
+  $("#drawer-mask").classList.remove("show");
+}
+$("#drawer-mask").addEventListener("click", closeDrawer);
+function normPhone(p) { return String(p || "").replace(/\D/g, ""); }
+
+/* ==================================================================== */
+/* MODALS                                                                */
+/* ==================================================================== */
+function modal(html) {
+  const root = $("#modal-root");
+  root.innerHTML = `<div class="modal-mask show"><div class="modal">${html}</div></div>`;
+  const mask = $(".modal-mask", root);
+  mask.addEventListener("mousedown", e => { if (e.target === mask) closeModal(); });
+  const x = $(".x", root); if (x) x.addEventListener("click", closeModal);
+  return root;
+}
+function closeModal() { $("#modal-root").innerHTML = ""; }
+
+/* ---------- KPI 明细弹窗（点击大屏卡片查看关联数据） ---------- */
+function openKpiDetail(key) {
+  const d = S.data.dashboard, ms = S.data.members, cs = S.data.classes;
+  const t = d.today, monthP = t.slice(0, 7);
+  let { start, end } = S.range || { start: t, end: t };
+  if (start > end) { const tmp = start; start = end; end = tmp; }
+  const byId = (a, b) => a.id.localeCompare(b.id, "zh", { numeric: true });
+  const incTitle = (start === t && end === t) ? "今日营收" : `${start} ~ ${end} 营收`;
+  const revTitle = (start === t && end === t) ? "今日耗课" : `${start} ~ ${end} 耗课`;
+
+  /* 会员类卡片：弹会员列表，点行进详情抽屉（可编辑/加课/退卡） */
+  const M = {
+    total:        ["总客户数", m => true, "id"],
+    valid_period: ["有效期客户", m => !m.refund && m.expiry_date && m.expiry_date >= t, "id"],
+    expired:      ["已到期", m => !m.refund && m.status === "已到期", "id"],
+    period_card:  ["期限卡客户", m => !m.refund && m.card_type === "期限卡", "id"],
+    session_card: ["次卡客户", m => !m.refund && m.card_type === "次卡", "id"],
+    pending:      ["待开卡客户", m => !m.refund && m.status === "待开卡", "id"],
+    normal:       ["正常客户", m => !m.refund && m.status === "正常", "id"],
+    warning:      ["预警客户", m => !m.refund && m.status === "预警客户", "id"],
+    sleeping:     ["沉睡客户", m => !m.refund && m.status === "沉睡客户", "id"],
+    refunded:     ["退卡客户", m => m.refund, "id"],
+    range_income: [incTitle, m => m.purchase_date && m.purchase_date >= start && m.purchase_date <= end, "purchase_date"],
+    month_income: ["本月营收", m => (m.purchase_date || "").startsWith(monthP), "purchase_date"],
+    liability:    ["累计负债", m => !m.refund && m.remaining_value > 0, "remaining_value"],
+  };
+  /* 上课记录类卡片：弹上课记录列表，可删除误录记录 */
+  const C = {
+    range_revenue: [revTitle, c => c.valid && c.date && c.date >= start && c.date <= end],
+    month_revenue: ["本月耗课", c => c.valid && (c.date || "").startsWith(monthP)],
+  };
+
+  if (M[key]) {
+    const [title, fn, sortBy] = M[key];
+    let list = ms.filter(fn);
+    if (sortBy === "purchase_date") list.sort((a, b) => (b.purchase_date || "").localeCompare(a.purchase_date || "") || byId(a, b));
+    else if (sortBy === "remaining_value") list.sort((a, b) => (b.remaining_value || 0) - (a.remaining_value || 0) || byId(a, b));
+    else list.sort(byId);
+    openMemberListModal(title, list);
+  } else if (C[key]) {
+    const [title, fn] = C[key];
+    let list = cs.filter(fn).sort((a, b) => (b.date + (b.time || "")).localeCompare(a.date + (a.time || "")) || a.row - b.row);
+    openClassListModal(title, list);
+  }
+}
+
+function openMemberListModal(title, list) {
+  const root = modal(`
+    <div class="modal-head"><h3>${esc(title)} · ${list.length} 位</h3><button class="x">×</button></div>
+    <div class="modal-body" style="padding:0">
+      <div style="overflow:auto;max-height:60vh">
+        <table class="tbl"><thead><tr>
+          <th>编号</th><th>姓名</th><th>老师</th><th>卡种</th><th>状态</th><th>购买日期</th><th class="num">剩余</th><th class="num">剩余课程金额</th>
+        </tr></thead><tbody>${list.length ? list.map(m => `<tr data-member="${esc(m.id)}" style="cursor:pointer">
+          <td><span class="badge">${esc(m.id)}</span></td>
+          <td><b>${esc(m.name)}</b></td>
+          <td>${esc(m.teacher || "—")}</td>
+          <td>${cardTag(m.card_type)}</td>
+          <td>${statusPill(m.status)}</td>
+          <td class="mono">${esc(m.purchase_date || "—")}</td>
+          <td class="num">${m.card_type === "次卡" ? (m.remaining_sessions + " 次") : (m.card_type === "期限卡" ? (m.remaining_days + " 天") : "—")}</td>
+          <td class="num gold-t">${m.refund ? "已退卡" : fmtMoney(m.remaining_value)}</td>
+        </tr>`).join("") : `<tr><td colspan="8"><div class="empty">暂无数据</div></td></tr>`}</tbody></table>
+      </div>
+    </div>
+    <div class="modal-foot"><span class="muted" style="font-size:12px;margin-right:auto">点击行查看详情并编辑</span><button class="btn" id="ml-close">关闭</button></div>`);
+  $$("tr[data-member]", root).forEach(tr =>
+    tr.addEventListener("click", () => { closeModal(); openDrawer(tr.dataset.member); }));
+  $("#ml-close", root).addEventListener("click", closeModal);
+}
+
+function openClassListModal(title, list) {
+  const sumRev = list.reduce((a, c) => a + (c.unit_price || 0), 0);
+  const root = modal(`
+    <div class="modal-head"><h3>${esc(title)} · ${list.length} 条 · 耗课 ${fmtMoney(sumRev)}</h3><button class="x">×</button></div>
+    <div class="modal-body" style="padding:0">
+      <div style="overflow:auto;max-height:60vh">
+        <table class="tbl"><thead><tr>
+          <th>#</th><th>日期</th><th>时间</th><th>会员</th><th>老师</th><th>卡种</th><th class="num">单价</th><th>课程</th><th></th>
+        </tr></thead><tbody>${list.length ? list.map(c => `<tr data-row="${c.row}">
+          <td class="muted">${esc(String(c.seq ?? ""))}</td>
+          <td class="mono">${esc(c.date || "")}</td>
+          <td class="mono">${esc(c.time || "")}</td>
+          <td><b>${esc(c.member_name)}</b> <span class="muted">${esc(c.member_id)}</span></td>
+          <td>${esc(c.teacher || "—")}</td>
+          <td>${cardTag(c.card_type)}</td>
+          <td class="num gold-t">${c.unit_price != null ? fmtMoney(c.unit_price) : "—"}</td>
+          <td>${esc(c.course || "—")}</td>
+          <td><button class="link danger" data-del="${c.row}">删除</button></td>
+        </tr>`).join("") : `<tr><td colspan="9"><div class="empty">暂无数据</div></td></tr>`}</tbody></table>
+      </div>
+    </div>
+    <div class="modal-foot"><span class="muted" style="font-size:12px;margin-right:auto">点击「删除」移除误录记录；点行查看会员详情</span><button class="btn" id="cl-close">关闭</button></div>`);
+  $$("tr[data-row]", root).forEach(tr =>
+    tr.addEventListener("click", e => {
+      if (e.target.closest("[data-del]")) return;
+      const c = list.find(x => x.row == tr.dataset.row);
+      if (c) { closeModal(); openDrawer(c.member_id); }
+    }));
+  $$("[data-del]", root).forEach(b => b.addEventListener("click", e => {
+    e.stopPropagation();
+    const row = Number(b.dataset.del);
+    confirmModal("删除上课记录", "确定删除这条上课记录吗？删除后剩余次数 / 最后上课日期等会自动联动更新。", async () => {
+      const j = await api("/api/classes/delete", { row });
+      afterMutation(j, "上课记录已删除");
+    });
+  }));
+  $("#cl-close", root).addEventListener("click", closeModal);
+}
+
+function confirmModal(title, bodyHtml, onOk) {
+  const root = modal(`
+    <div class="modal-head"><h3>${esc(title)}</h3><button class="x">×</button></div>
+    <div class="modal-body" style="font-size:13.5px;line-height:1.7">${bodyHtml}</div>
+    <div class="modal-foot"><button class="btn" id="cm-cancel">取消</button><button class="btn primary" id="cm-ok">确定</button></div>`);
+  $("#cm-cancel", root).addEventListener("click", closeModal);
+  $("#cm-ok", root).addEventListener("click", async () => {
+    const b = $("#cm-ok", root); b.disabled = true; b.textContent = "处理中…";
+    try { await onOk(); } catch (e) { toast(e.message, "err"); b.disabled = false; b.textContent = "确定"; }
+  });
+}
+
+async function afterMutation(j, okMsg) {
+  closeModal();
+  _versions = null;  // 失效历史版本缓存，下次进入时重新拉取
+  await refresh(true);
+  renderSaveState();
+  if (j && j.saved === false) toast((okMsg || "已提交") + "。但保存到表格失败：" + (j.meta?.pending_reason || ""), "warn");
+  else toast(okMsg + "，已保存到表格", "ok");
+  if (S.drawerMember) openDrawer(S.drawerMember.id);
+  if (S.view === "members") renderMemberRows();
+  if (S.view === "versions") renderVersions();
+}
+
+/* ---------- 新增客户 / 办新卡 ---------- */
+function openMemberModal(_, editMember) {
+  const isEdit = !!editMember;
+  const ms = S.data.members;
+  const persons = [];
+  const seen = new Set();
+  ms.forEach(m => {
+    const k = normPhone(m.phone) || m.name;
+    if (!seen.has(k)) { seen.add(k); persons.push({ id: m.id, name: m.name, phone: m.phone, teacher: m.teacher }); }
+  });
+  const teachers = [...new Set(ms.map(m => m.teacher).filter(Boolean))];
+  const types = [...new Set(ms.map(m => m.member_type).filter(Boolean))].concat(["私教", "普拉提小班"]).filter((v, i, a) => a.indexOf(v) === i);
+
+  const root = modal(`
+    <div class="modal-head"><h3>${isEdit ? "编辑会员资料" : "新增客户 / 办新卡"}</h3><button class="x">×</button></div>
+    <div class="modal-body"><div class="form-grid">
+      ${isEdit ? "" : `
+      <div class="field wide">
+        <label>办卡方式</label>
+        <div class="seg" id="mm-mode">
+          <button data-m="new" class="on">新客户办卡</button><button data-m="old">已有客户新办卡</button>
+        </div>
+      </div>
+      <div class="field wide" id="mm-person-box" style="display:none">
+        <label>选择客户</label>
+        <select class="select" id="mm-person">
+          <option value="">— 请选择客户 —</option>
+          ${persons.map(p => `<option value="${esc(p.id)}" data-name="${esc(p.name)}" data-phone="${esc(p.phone)}" data-teacher="${esc(p.teacher)}">${esc(p.name)}（${esc(p.id)}）</option>`).join("")}
+        </select>
+      </div>`}
+      <div class="field"><label>会员姓名 <span class="req">*</span></label><input class="input" id="mm-name" value="${esc(isEdit ? editMember.name : "")}"></div>
+      <div class="field"><label>手机号</label><input class="input" id="mm-phone" value="${esc(isEdit ? editMember.phone : "")}" placeholder="用于识别同一客户"></div>
+      <div class="field"><label>负责老师</label>
+        <input class="input" id="mm-teacher" list="mm-teachers" value="${esc(isEdit ? editMember.teacher : "")}">
+        <datalist id="mm-teachers">${teachers.map(t => `<option value="${esc(t)}">`).join("")}</datalist></div>
+      <div class="field"><label>会员类型</label>
+        <input class="input" id="mm-type" list="mm-types" value="${esc(isEdit ? editMember.member_type : "")}">
+        <datalist id="mm-types">${types.map(t => `<option value="${esc(t)}">`).join("")}</datalist></div>
+      <div class="field"><label>卡种 <span class="req">*</span></label>
+        <select class="select" id="mm-card">
+          <option value="次卡" ${isEdit && editMember.card_type === "次卡" ? "selected" : ""}>次卡（按次数）</option>
+          <option value="期限卡" ${isEdit && editMember.card_type === "期限卡" ? "selected" : ""}>期限卡（按时间）</option>
+        </select></div>
+      <div class="field"><label>购买日期</label><input class="input" type="date" id="mm-purchase" value="${isEdit ? (editMember.purchase_date || today()) : today()}"></div>
+      <div class="field"><label>开卡日期</label><input class="input" type="date" id="mm-activation" value="${isEdit ? (editMember.activation_date || "") : ""}" title="留空 = 待开卡"></div>
+      <div class="field"><label>有效期至 <span class="req" id="mm-exp-req">*</span></label><input class="input" type="date" id="mm-expiry" value="${isEdit ? (editMember.expiry_date || "") : ""}"></div>
+      <div class="field"><label>实收金额（元）</label><input class="input" type="number" id="mm-amount" min="0" step="0.01" value="${isEdit ? (editMember.amount ?? "") : ""}"></div>
+      <div class="field"><label>应收金额（元）</label><input class="input" type="number" id="mm-receivable" min="0" step="0.01" value="${isEdit ? (editMember.receivable ?? "") : ""}"></div>
+      <div class="field"><label>总次数（次卡必填）</label><input class="input" type="number" id="mm-total" min="0" step="1" value="${isEdit ? (editMember.total_sessions ?? "") : ""}"></div>
+      <div class="field wide"><label>备注</label><textarea class="input" id="mm-remark">${esc(isEdit ? editMember.remark : "")}</textarea></div>
+    </div>
+    <div class="form-tip" id="mm-tip">会员编号将自动生成。<b>开卡日期留空即视为「待开卡」</b>，开卡后补填日期即可。单价按<b>应收金额</b>计算：次卡=应收/总次数，期限卡=应收/(有效期至−开卡日期)；尾款=应收−实收。保存后可直接在详情页添加上课。</div>
+    </div>
+    <div class="modal-foot"><button class="btn" id="mm-cancel">取消</button>
+      <button class="btn primary" id="mm-submit">${isEdit ? "保存修改" : "创建会员"}</button></div>`);
+
+  let mode = "new", baseId = null;
+  if (!isEdit) {
+    $("#mm-mode", root).addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      mode = b.dataset.m;
+      $$("#mm-mode button", root).forEach(x => x.classList.toggle("on", x === b));
+      $("#mm-person-box", root).style.display = mode === "old" ? "" : "none";
+      if (mode === "new") { $("#mm-name", root).value = ""; $("#mm-phone", root).value = ""; }
+    });
+    $("#mm-person", root).addEventListener("change", e => {
+      const o = e.target.selectedOptions[0];
+      $("#mm-name", root).value = o?.dataset.name || "";
+      $("#mm-phone", root).value = o?.dataset.phone || "";
+      if (!$("#mm-teacher", root).value) $("#mm-teacher", root).value = o?.dataset.teacher || "";
+      baseId = e.target.value || null;
+      $("#mm-tip", root).innerHTML = `将为该客户新办一张卡，编号自动生成（形如 <b>M001-2</b>）`;
+    });
+  }
+  $("#mm-cancel", root).addEventListener("click", closeModal);
+  $("#mm-submit", root).addEventListener("click", async () => {
+    const btn = $("#mm-submit", root);
+    const card = $("#mm-card", root).value;
+    const payload = {
+      name: $("#mm-name", root).value.trim(),
+      phone: $("#mm-phone", root).value.trim(),
+      teacher: $("#mm-teacher", root).value.trim(),
+      member_type: $("#mm-type", root).value.trim(),
+      card_type: card,
+      purchase_date: $("#mm-purchase", root).value,
+      activation_date: $("#mm-activation", root).value,
+      expiry_date: $("#mm-expiry", root).value,
+      amount: $("#mm-amount", root).value,
+      receivable: $("#mm-receivable", root).value,
+      total_sessions: $("#mm-total", root).value,
+      remark: $("#mm-remark", root).value.trim(),
+    };
+    if (!payload.name) return toast("请填写会员姓名", "err");
+    if (card === "次卡" && !(Number(payload.total_sessions) > 0)) return toast("次卡必须填写大于 0 的总次数", "err");
+    if (card === "期限卡" && !payload.expiry_date) return toast("期限卡必须填写有效期至", "err");
+    if (!isEdit && mode === "old") payload.base_member_id = baseId;
+    btn.disabled = true; btn.textContent = "保存中…";
+    try {
+      const j = isEdit
+        ? await api("/api/members/update", { id: editMember.id, fields: payload })
+        : await api("/api/members", payload);
+      await afterMutation(j, isEdit ? "会员资料已更新" : `会员 ${payload.name} 已创建（${j.member_id}）`);
+    } catch (e) { toast(e.message, "err"); btn.disabled = false; btn.textContent = isEdit ? "保存修改" : "创建会员"; }
+  });
+}
+
+/* ---------- 添加上课记录 ---------- */
+function openClassModal(presetMemberId) {
+  const ms = S.data.members;
+  const root = modal(`
+    <div class="modal-head"><h3>添加上课记录</h3><button class="x">×</button></div>
+    <div class="modal-body"><div class="form-grid">
+      <div class="field wide"><label>上课会员 <span class="req">*</span></label>
+        <select class="select" id="cm-member" style="width:100%">
+          <option value="">— 请选择会员（按姓名/编号） —</option>
+          ${ms.map(m => `<option value="${esc(m.id)}" ${m.id === presetMemberId ? "selected" : ""}>${esc(m.name)}（${esc(m.id)}·${esc(m.card_type)}·余${m.card_type === "次卡" ? m.remaining_sessions + "次" : m.remaining_days + "天"}）</option>`).join("")}
+        </select></div>
+      <div class="field"><label>上课日期 <span class="req">*</span></label><input class="input" type="date" id="cm-date" value="${today()}"></div>
+      <div class="field"><label>上课时间</label><input class="input" type="time" id="cm-time" value="${new Date().toTimeString().slice(0, 5)}"></div>
+      <div class="field"><label>课程名称</label><input class="input" id="cm-course" list="cm-courses" placeholder="如：全身塑形 / 腰腹 / 肩颈">
+        <datalist id="cm-courses">${[...new Set(S.data.classes.map(c => c.course).filter(Boolean))].map(c => `<option value="${esc(c)}">`).join("")}</datalist></div>
+      <div class="field"><label>效果图</label>
+        <label class="chk" style="margin-top:8px"><input type="checkbox" id="cm-effect"> 已发效果图</label></div>
+      <div class="field wide"><label>备注</label><input class="input" id="cm-remark"></div>
+    </div>
+    <div class="form-tip">保存后自动联动：次卡<b>剩余次数 -1</b>、更新<b>最后上课日期</b>与<b>连续未到天数</b>、状态（正常/预警/沉睡）自动重算，<b>今日耗课 / 门店负债</b>同步更新。若剩余次数不足仍可记录（用于补录历史）。</div>
+    </div>
+    <div class="modal-foot"><button class="btn" id="cm-cancel">取消</button><button class="btn primary" id="cm-submit">保存记录</button></div>`);
+
+  $("#cm-cancel", root).addEventListener("click", closeModal);
+  $("#cm-submit", root).addEventListener("click", async () => {
+    const btn = $("#cm-submit", root);
+    const payload = {
+      member_id: $("#cm-member", root).value,
+      date: $("#cm-date", root).value,
+      time: $("#cm-time", root).value,
+      course: $("#cm-course", root).value.trim(),
+      effect: $("#cm-effect", root).checked,
+      remark: $("#cm-remark", root).value.trim(),
+    };
+    if (!payload.member_id) return toast("请选择上课会员", "err");
+    if (!payload.date) return toast("请填写上课日期", "err");
+    btn.disabled = true; btn.textContent = "保存中…";
+    try {
+      const j = await api("/api/classes", payload);
+      await afterMutation(j, "上课记录已添加");
+    } catch (e) { toast(e.message, "err"); btn.disabled = false; btn.textContent = "保存记录"; }
+  });
+}
+
+/* ==================================================================== */
+/* save state / misc                                                     */
+/* ==================================================================== */
+function renderSaveState() {
+  const meta = S.data?.meta; if (!meta) return;
+  const box = $("#save-state");
+  const ok = meta.saved;
+  box.classList.toggle("warn", !ok);
+  $("#save-text").textContent = ok ? `已保存 ${meta.last_saved || ""}`.trim() : "待保存（表格被占用）";
+  $("#btn-retry-save").style.display = ok ? "none" : "";
+}
+$("#btn-retry-save").addEventListener("click", async () => {
+  try { const j = await api("/api/save", {}); await refresh(true); if (j.ok) toast("已保存到表格", "ok"); else toast(j.meta?.pending_reason || "保存失败", "warn"); }
+  catch (e) { toast(e.message, "err"); }
+});
+$("#btn-refresh").addEventListener("click", async () => { try { await refresh(true); toast("数据已刷新", "ok"); } catch (e) { toast(e.message, "err"); } });
+$("#btn-swap-file").addEventListener("click", pickExcel);
+$("#btn-reload").addEventListener("click", () => {
+  confirmModal("从表格重载", "将放弃网页端未保存的内存修改，重新读取 Excel 文件内容。<br><span class='muted'>适用场景：你在 Excel/WPS 里手动改了表格，想让网页同步最新内容。</span>", async () => {
+    await api("/api/reload", {});
+    await refresh(true);
+    toast("已从表格重新加载", "ok");
+  });
+});
+
+/* ---------- 表格文件选择 / 上传 ---------- */
+async function fileToBase64(f) {
+  return await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(",")[1]);
+    r.onerror = () => rej(new Error("文件读取失败"));
+    r.readAsDataURL(f);
+  });
+}
+function pickExcel() {
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = ".xlsx,.xlsm";
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    toast("正在上传并加载「" + f.name + "」…", "ok");
+    try {
+      const b64 = await fileToBase64(f);
+      await api("/api/file", { name: f.name, data_b64: b64 });
+      S.range = null;
+      S.data = null;
+      await refresh();
+      toast("已加载表格：" + f.name, "ok");
+    } catch (e) { toast(e.message, "err"); }
+  };
+  inp.click();
+}
+function renderSetup() {
+  const main = document.querySelector("main");
+  main.innerHTML = `
+  <div style="display:flex;align-items:center;justify-content:center;min-height:70vh">
+    <div style="max-width:540px;width:100%;background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--border2);border-radius:18px;padding:44px 42px;text-align:center;box-shadow:var(--shadow)">
+      <svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.6" style="margin:0 auto 18px;display:block">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6M9 11.5h6" stroke="#f0a6c0"/>
+      </svg>
+      <h2 style="font-size:19px;margin-bottom:12px">未找到默认表格文件</h2>
+      <p class="muted" style="font-size:13px;line-height:1.9">系统默认读取程序同目录下名为<br>
+        <b style="color:var(--gold)">莱·梵壹会员实时跟踪管理系统*.xlsx</b><br>
+        的表格文件，当前目录中未找到。<br>
+        请手动选择任意名称的表格文件（仅支持 .xlsx / .xlsm，需含「会员档案」「上课记录」工作表）。</p>
+      <button class="btn primary" id="setup-pick" style="margin-top:24px;padding:11px 28px;font-size:14px">＋ 选择表格文件</button>
+      <div class="muted" style="font-size:11.5px;margin-top:14px">选中的文件会复制到程序目录，下次启动自动加载</div>
+    </div>
+  </div>`;
+  $("#setup-pick").addEventListener("click", pickExcel);
+}
+
+/* ---------- 上次未保存变更（挂起工件）恢复提示 ---------- */
+function maybePromptPending() {
+  const pr = S.data?.meta?.pending_recovery;
+  if (!pr) return;
+  const root = modal(`
+    <div class="modal-head"><h3>发现未保存的变更</h3><button class="x">×</button></div>
+    <div class="modal-body" style="font-size:13.5px;line-height:1.9">
+      上次保存时表格文件被 Excel/WPS 占用，变更已暂存：<br>
+      <b>${esc(pr.summary || pr.action || "未知操作")}</b> <span class="muted">${esc(pr.ts || "")}</span><br>
+      <span class="muted">「恢复」会用暂存的变更覆盖表格当前内容；「丢弃」则放弃这些变更，表格保持磁盘现状。</span>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger" id="pr-discard">丢弃变更</button>
+      <button class="btn primary" id="pr-recover">恢复到表格</button>
+    </div>`);
+  $("#pr-recover", root).addEventListener("click", async () => {
+    const b = $("#pr-recover", root);
+    b.disabled = true; b.textContent = "恢复中…";
+    try {
+      await api("/api/pending/recover", {});
+      closeModal();
+      S.data = null;
+      await refresh();
+      toast("已恢复上次未保存的变更", "ok");
+    } catch (e) { toast(e.message, "err"); b.disabled = false; b.textContent = "恢复到表格"; }
+  });
+  $("#pr-discard", root).addEventListener("click", async () => {
+    try {
+      await api("/api/pending/discard", {});
+      closeModal();
+      await refresh(true);
+      toast("已丢弃挂起的变更", "ok");
+    } catch (e) { toast(e.message, "err"); }
+  });
+}
+
+/* ==================================================================== */
+/* VERSIONS VIEW（历史版本回滚）                                          */
+/* ==================================================================== */
+const ACTION_META = {
+  "新增会员": { c: "#3ddbb0", t: "新增会员" },
+  "编辑会员": { c: "#a78bfa", t: "编辑会员" },
+  "标记退卡": { c: "#64748b", t: "标记退卡" },
+  "恢复会员": { c: "#3ddbb0", t: "恢复会员" },
+  "添加上课": { c: "#6096ff", t: "添加上课" },
+  "删除上课": { c: "#f87171", t: "删除上课" },
+  "手动备份": { c: "#f2c14e", t: "手动备份" },
+  "恢复前自动备份": { c: "#fbbf24", t: "恢复前快照" },
+  "更换表格前备份": { c: "#f0a6c0", t: "换表前快照" },
+  "重试保存": { c: "#94a3b8", t: "重试保存" },
+  "保存": { c: "#94a3b8", t: "保存" },
+};
+let _versions = null;
+async function ensureVersions() {
+  if (!_versions) {
+    try { _versions = (await api("/api/versions")).versions || []; }
+    catch (e) { _versions = []; }
+  }
+  return _versions;
+}
+function fmtVersionTime(ts) {
+  // ts = "20260827_160430"
+  const m = /^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/.exec(ts || "");
+  if (!m) return ts || "";
+  return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
+}
+function fmtSize(b) {
+  if (!b) return "—";
+  if (b < 1024) return b + " B";
+  if (b < 1048576) return (b / 1024).toFixed(1) + " KB";
+  return (b / 1048576).toFixed(2) + " MB";
+}
+
+async function renderVersions() {
+  const el = $("#view-versions");
+  const vs = await ensureVersions();
+  if (!el.dataset.built) {
+    el.dataset.built = 1;
+    el.innerHTML = `
+      <div class="toolbar">
+        <button class="btn primary" id="v-backup">＋ 立即备份当前版本</button>
+        <button class="btn" id="v-refresh">刷新列表</button>
+        <div class="sp"></div>
+        <span class="muted" id="v-count" style="font-size:12.5px"></span>
+      </div>
+      <div class="panel" style="padding:0;overflow:auto;max-height:calc(100vh - 210px)">
+        <table class="tbl"><thead><tr>
+          <th>时间</th><th>操作类型</th><th>说明</th><th class="num">大小</th><th>操作</th>
+        </tr></thead><tbody id="v-tbody"></tbody></table>
+      </div>
+      <div class="form-tip" style="margin-top:14px">
+        <b>说明</b>：每次新增/编辑/退卡/加课/删课前，系统会自动把改动前的表格状态存为一个历史版本（最多保留 100 个）。
+        误操作后，找到对应时间点的版本点「恢复」即可回滚。恢复时会先把当前状态自动存一个「恢复前快照」，所以恢复本身也能再撤销。
+      </div>`;
+    $("#v-backup").addEventListener("click", async () => {
+      const note = await openNotePrompt();
+      if (note === null) return;
+      try {
+        const j = await api("/api/versions/backup", { note });
+        _versions = j.versions; renderVersionRows();
+        toast("已备份当前版本", "ok");
+      } catch (e) { toast(e.message, "err"); }
+    });
+    $("#v-refresh").addEventListener("click", async () => {
+      _versions = null; await ensureVersions(); renderVersionRows(); toast("已刷新", "ok");
+    });
+  }
+  renderVersionRows();
+}
+
+function renderVersionRows() {
+  const vs = _versions || [];
+  $("#v-count").textContent = `共 ${vs.length} 个版本（最多保留 100 个）`;
+  const tb = $("#v-tbody");
+  tb.innerHTML = vs.length ? vs.map(v => {
+    const m = ACTION_META[v.action] || { c: "#94a3b8", t: v.action || "操作" };
+    return `<tr>
+      <td class="mono">${esc(fmtVersionTime(v.ts))}</td>
+      <td><span class="badge" style="background:${m.c}22;color:${m.c}">${esc(m.t)}</span></td>
+      <td>${esc(v.summary || "—")}</td>
+      <td class="num muted">${fmtSize(v.size)}</td>
+      <td>
+        <button class="link" data-restore="${esc(v.file)}">恢复此版本</button>
+        <a class="link" href="/api/versions/download?file=${encodeURIComponent(v.file)}" download>下载</a>
+      </td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="5"><div class="empty">暂无历史版本</div></td></tr>`;
+  $$("#v-tbody [data-restore]").forEach(b => b.addEventListener("click", () => {
+    const file = b.dataset.restore;
+    confirmModal("恢复历史版本",
+      `将用该版本（<b>${esc(file)}</b>）<b>覆盖当前表格</b>。<br><span class="muted">恢复前会自动把当前状态存为一个「恢复前快照」，所以这次恢复也能再撤销。若当前表格正被 Excel 打开会恢复失败，请先关闭。</span>`,
+      async () => {
+        const j = await api("/api/versions/restore", { file });
+        _versions = j.versions;
+        S.range = null; S.data = null;
+        await refresh(true);
+        renderVersionRows();
+        toast("已恢复到该历史版本，数据已重载", "ok");
+      });
+  }));
+}
+
+/* 一个简易文本输入弹窗（用于手动备份备注） */
+function openNotePrompt() {
+  return new Promise(resolve => {
+    const root = modal(`
+      <div class="modal-head"><h3>手动备份</h3><button class="x">×</button></div>
+      <div class="modal-body">
+        <div class="field wide"><label>备注（可选）</label>
+          <input class="input" id="np-input" placeholder="如：月底结算前备份" autofocus></div>
+        <div class="form-tip">将当前表格状态存为一个历史版本，之后可随时恢复。</div>
+      </div>
+      <div class="modal-foot"><button class="btn" id="np-cancel">取消</button>
+        <button class="btn primary" id="np-ok">备份</button></div>`);
+    const close = (v) => { closeModal(); resolve(v); };
+    $(".x", root).addEventListener("click", () => close(null));
+    $("#np-cancel", root).addEventListener("click", () => close(null));
+    $("#np-ok", root).addEventListener("click", () => {
+      close($("#np-input", root).value.trim());
+    });
+    $("#np-input", root).addEventListener("keydown", e => {
+      if (e.key === "Enter") close(e.target.value.trim());
+      if (e.key === "Escape") close(null);
+    });
+    setTimeout(() => $("#np-input", root)?.focus(), 50);
+  });
+}
+
+/* ---------- 主题切换 ---------- */
+const THEME_KEY = "lf_theme";
+function applyTheme(t){ document.documentElement.setAttribute("data-theme", t === "day" ? "day" : "night"); }
+$("#theme-toggle").addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme") === "day" ? "day" : "night";
+  const next = cur === "day" ? "night" : "day";
+  applyTheme(next);
+  try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+});
+
+/* ---------- render root ---------- */
+const VIEW_META = {
+  dashboard: { t: "数据大屏", d: () => `${S.data.dashboard.today} · 实时同步自 Excel 表格` , a: "" },
+  members: { t: "客户管理", d: () => "点击行查看会员详情、办新卡、标记退卡", a: "" },
+  records: { t: "上课记录", d: () => "每次上课在此添加一条记录，所有统计自动联动", a: "" },
+  versions: { t: "历史版本", d: () => "每次改动前自动存档，可随时恢复到任意历史版本", a: "" },
+};
+function render() {
+  if (!S.data) return;
+  $("#view-dashboard").style.display = S.view === "dashboard" ? "" : "none";
+  $("#view-members").style.display = S.view === "members" ? "" : "none";
+  $("#view-records").style.display = S.view === "records" ? "" : "none";
+  $("#view-versions").style.display = S.view === "versions" ? "" : "none";
+  const vm = VIEW_META[S.view];
+  $("#page-title").textContent = vm.t;
+  $("#page-desc").innerHTML = vm.d();
+  renderSaveState();
+  if (S.view === "dashboard") renderDashboard();
+  else if (S.view === "members") renderMembers();
+  else if (S.view === "records") renderRecords();
+  else renderVersions();
+}
+
+/* ---------- boot ---------- */
+(async function boot() {
+  try {
+    const j = await api("/api/data");
+    if (j.no_file) { renderSetup(); return; }
+    S.data = j.data;
+    render();
+    maybePromptPending();
+    setInterval(async () => {
+      if ($(".modal-mask.show") || $("#drawer").classList.contains("show")) return;
+      try { await refresh(true); } catch (e) {}
+    }, 60000);
+  } catch (e) {
+    document.body.innerHTML = `<div style="padding:60px;text-align:center;color:var(--text)">
+      <h2 style="margin-bottom:12px">加载失败</h2><p style="color:var(--muted)">${esc(e.message)}</p>
+      <p style="margin-top:8px;color:var(--muted)">请确认服务已启动且 Excel 文件存在。</p></div>`;
+  }
+})();
+</script>
+</body>
+</html>

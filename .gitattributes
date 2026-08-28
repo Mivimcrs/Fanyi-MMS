@@ -1,0 +1,12 @@
+# shell 脚本必须保持 LF，否则 macOS runner 上 bash 会因 \r 报错
+*.sh text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.rs text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+# 二进制文件不做任何转换
+*.xlsx binary
+*.exe binary
+*.icns binary
+*.ico binary

@@ -1,0 +1,70 @@
+name: build-release
+
+# 双平台发布构建：打 tag（v*）或手动触发
+# Windows: MSVC 工具链，产出 laifanyi.exe（托盘 + 无控制台）
+# macOS:   Intel + Apple Silicon 双架构 lipo 合并 universal2，组装 .app（实验性）
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release
+      - name: Package (portable zip)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target/release/laifanyi.exe dist/
+          Copy-Item README.md dist/使用说明.txt
+          Compress-Archive -Path dist/* -DestinationPath laifanyi-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: laifanyi-windows-x64.zip
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Build universal2
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+          lipo -create \
+            target/aarch64-apple-darwin/release/laifanyi \
+            target/x86_64-apple-darwin/release/laifanyi \
+            -output laifanyi-universal
+          file laifanyi-universal
+      - name: Assemble .app
+        run: bash scripts/make_app.sh laifanyi-universal
+      - name: Ad-hoc codesign（正式分发请在 secrets 配置 Developer ID 后替换）
+        run: |
+          codesign --force --deep --sign - "莱·梵壹会员系统.app"
+          zip -r laifanyi-macos-universal.zip "莱·梵壹会员系统.app"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: laifanyi-macos-universal.zip
+
+  release:
+    needs: [windows, macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            windows/laifanyi-windows-x64.zip
+            macos/laifanyi-macos-universal.zip

@@ -1,0 +1,45 @@
+[package]
+name = "laifanyi-member-system"
+version = "3.0.0"
+edition = "2021"
+description = "莱·梵壹会员实时跟踪管理系统 - Rust 后端（单文件、免环境）"
+
+[lib]
+name = "laifanyi_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "laifanyi"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+calamine = { version = "0.26", features = ["dates"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+base64 = "0.22"
+open = "5"
+fs2 = "0.4"
+
+[target.'cfg(windows)'.dependencies]
+# rfd（消息框）与 tray-icon（系统托盘）仅在 Windows 代码路径使用；
+# 收窄到 Windows 目标可让 macOS 构建零 Apple 框架依赖（交叉编译无需 macOS SDK）
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation"] }
+rfd = "0.15"
+tray-icon = "0.19"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tower = { version = "0.4", features = ["util"] }
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"

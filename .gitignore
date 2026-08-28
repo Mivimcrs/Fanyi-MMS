@@ -1,0 +1,9 @@
+/target
+data/
+config.json
+versions/
+*.tmp
+*.lnk
+.laifanyi.lock
+.laifanyi.port
+.laifanyi.pending.*
