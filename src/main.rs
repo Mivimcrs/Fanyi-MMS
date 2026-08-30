@@ -84,7 +84,7 @@ fn main() {
 
     let store = match excel_path {
         Some(p) => match Store::load(p, app_dir.clone()) {
-            Ok(s) => {
+            Ok(mut s) => {
                 let data = s.data_json();
                 let dash = &data["dashboard"];
                 let n_members = dash["total"].as_u64().unwrap_or(0);

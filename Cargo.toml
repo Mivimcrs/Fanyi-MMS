@@ -1,8 +1,9 @@
 [package]
 name = "laifanyi-member-system"
-version = "3.0.0"
+version = "3.0.1"
 edition = "2021"
 description = "莱·梵壹会员实时跟踪管理系统 - Rust 后端（单文件、免环境）"
+build = "build.rs"
 
 [lib]
 name = "laifanyi_core"
@@ -36,6 +37,9 @@ libc = "0.2"
 
 [dev-dependencies]
 tower = { version = "0.4", features = ["util"] }
+
+[build-dependencies]
+winresource = "0.1"
 
 [profile.release]
 opt-level = "z"

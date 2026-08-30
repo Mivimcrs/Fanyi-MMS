@@ -86,6 +86,16 @@ universal2 合并与 .app 组装仍走 CI。
 
 ## CI 与 macOS 打包
 
+- `git tag v3.0.1 && git push --tags` → Actions 自动构建：
+  - Windows：`laifanyi-windows-x64.zip`（exe + 使用说明）
+  - macOS：`laifanyi-macos-universal.zip`（universal2 双架构 .app，Intel/Apple Silicon 通吃）
+
+### 杀软误报（Defender / Avast 等）
+
+未签名 exe 容易被杀软误报。v3.0.1 起 exe 已嵌入**图标 + 版本信息资源**，且分发统一使用
+CI 的 **MSVC 构建**（本机 GNU 构建仅用于开发调试）；发版后请按 [防误报指南.md](防误报指南.md)
+提交各杀软免费误报申诉。根治方案（进行中）：仓库开源 + SignPath Foundation 免费代码签名。
+
 - `git tag v3.0.0 && git push --tags` → Actions 自动构建：
   - Windows：`laifanyi-windows-x64.zip`（exe + 使用说明）
   - macOS：`laifanyi-macos-universal.zip`（universal2 双架构 .app，Intel/Apple Silicon 通吃）
@@ -112,6 +122,7 @@ universal2 合并与 .app 组装仍走 CI。
 |---|---|---|
 | 端口占用 | 强杀 8688 占用进程 | 顺延 8689+，不杀进程 |
 | 保存原子性 | 直接覆盖 | 临时文件 + 原子替换 |
+| 表格外部访问 | 随时可被 Excel/WPS 打开（易冲突） | **系统运行期间独占锁定**（Windows 内核级）：外部打开/读写即被拒绝，托盘退出即解锁 |
 | 保存失败（表格被占用） | 变更仅存内存，退出即丢 | 变更落盘 `.laifanyi.pending.xlsx`，重启后网页提示一键恢复/丢弃 |
 | 首写备份 | 文档承诺未实现 | 已实现（暂未写 backups/，快照在 versions/） |
 | 切片器 | openpyxl 会丢失 | 逐字节保留 |

@@ -378,7 +378,7 @@ html[data-theme="day"] #theme-toggle .lbl-to-night{display:inline}
       <div class="mini">
         <button id="btn-refresh" title="重新读取数据">刷新数据</button>
         <button id="btn-swap-file" title="选择另一份表格文件（.xlsx / .xlsm）">更换表格</button>
-        <button id="btn-reload" title="放弃网页端修改前需先保存；用于你在 Excel 里手改了表格之后同步进网页">从表格重载</button>
+        <button id="btn-reload" title="重新读取表格文件内容。系统运行期间表格被独占锁定，如需在 Excel/WPS 手改，请先在托盘菜单退出本系统">从表格重载</button>
       </div>
     </div>
   </aside>
@@ -586,6 +586,7 @@ function renderDashboard() {
     { key: "warning", l: "预警客户", v: fmtInt(d.warning), s: "连续未到 7–9 天", c: "#fbbf24" },
     { key: "sleeping", l: "沉睡客户", v: fmtInt(d.sleeping), s: "连续未到 ≥ 10 天", c: "#f87171" },
     { key: "refunded", l: "退卡客户", v: fmtInt(d.refunded), s: "已办理退卡", c: "#64748b" },
+    { key: "effect", l: "效果图", v: fmtInt(rs.effect), s: start === end ? `${start} 已发效果图` : `${start} ~ ${end} 已发效果图`, c: "#3ddbb0" },
   ].map(kpiCard).join("");
   /* 门店收支状态（5 项） */
   const moneyKpis = [
@@ -635,7 +636,7 @@ function renderDashboard() {
       <input type="date" class="input" id="rg-end" value="${end}">
       <div class="seg" id="rg-presets">${presets.map(p =>
         `<button data-k="${p.k}" class="${start === p.s && end === p.e ? "on" : ""}">${p.l}</button>`).join("")}</div>
-      <span class="rb-info">共 <b>${dayCount}</b> 天 · <b>${rs.count}</b> 次课 · 耗课 <b>${fmtMoney(rs.rev)}</b>${rs.effect ? ` · 效果图 ${rs.effect} 张` : ""}</span>
+      <span class="rb-info">共 <b>${dayCount}</b> 天 · <b>${rs.count}</b> 次课 · 耗课 <b>${fmtMoney(rs.rev)}</b></span>
     </div>
     <div class="panel" style="margin-bottom:14px"><h3>门店客户状态</h3><div class="kpi-grid" style="margin-bottom:0">${statusKpis}</div></div>
     <div class="panel" style="margin-bottom:14px"><h3>门店收支状态</h3><div class="kpi-grid" style="margin-bottom:0">${moneyKpis}</div></div>
@@ -1039,6 +1040,7 @@ function openKpiDetail(key) {
   const byId = (a, b) => a.id.localeCompare(b.id, "zh", { numeric: true });
   const incTitle = (start === t && end === t) ? "今日营收" : `${start} ~ ${end} 营收`;
   const revTitle = (start === t && end === t) ? "今日耗课" : `${start} ~ ${end} 耗课`;
+  const effTitle = (start === t && end === t) ? "今日效果图" : `${start} ~ ${end} 效果图`;
 
   /* 会员类卡片：弹会员列表，点行进详情抽屉（可编辑/加课/退卡） */
   const M = {
@@ -1060,6 +1062,7 @@ function openKpiDetail(key) {
   const C = {
     range_revenue: [revTitle, c => c.valid && c.date && c.date >= start && c.date <= end],
     month_revenue: ["本月耗课", c => c.valid && (c.date || "").startsWith(monthP)],
+    effect: [effTitle, c => c.valid && c.effect && c.date && c.date >= start && c.date <= end],
   };
 
   if (M[key]) {
@@ -1332,7 +1335,7 @@ $("#btn-retry-save").addEventListener("click", async () => {
 $("#btn-refresh").addEventListener("click", async () => { try { await refresh(true); toast("数据已刷新", "ok"); } catch (e) { toast(e.message, "err"); } });
 $("#btn-swap-file").addEventListener("click", pickExcel);
 $("#btn-reload").addEventListener("click", () => {
-  confirmModal("从表格重载", "将放弃网页端未保存的内存修改，重新读取 Excel 文件内容。<br><span class='muted'>适用场景：你在 Excel/WPS 里手动改了表格，想让网页同步最新内容。</span>", async () => {
+  confirmModal("从表格重载", "将放弃网页端未保存的内存修改，重新读取 Excel 文件内容。<br><span class='muted'>系统运行期间表格被独占锁定；如需在 Excel/WPS 手动修改表格，请先在托盘菜单退出本系统，改完后再启动，然后点此同步最新内容。</span>", async () => {
     await api("/api/reload", {});
     await refresh(true);
     toast("已从表格重新加载", "ok");

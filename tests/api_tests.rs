@@ -63,6 +63,16 @@ fn ok(j: &Value) -> bool {
     j.get("ok").and_then(Value::as_bool).unwrap_or(false)
 }
 
+/// 释放 app 持有的独占锁（测试中的 Store::load 模拟外部读取，会被文件锁拒绝）
+fn unlock(app: &Arc<AppState>) {
+    app.store
+        .lock()
+        .unwrap()
+        .as_mut()
+        .unwrap()
+        .release_file_lock();
+}
+
 #[tokio::test]
 async fn data_without_file_guides_setup() {
     let app = app_without_store(temp_dir("nofile"));
@@ -123,18 +133,21 @@ async fn member_add_update_persists_to_disk() {
     assert!(mid.starts_with('M'));
     assert_eq!(j["saved"], json!(true), "临时目录无占用，应直接落盘");
 
-    // 落盘校验（全新加载）
+    // 落盘校验（先释放独占锁，再模拟外部全新加载）
+    unlock(&app);
     let st2 = Store::load(dir.join("测试表格.xlsx"), dir.clone()).unwrap();
     let m = st2.members.iter().find(|m| m.id == mid).unwrap();
     assert_eq!(m.name, "接口员");
     assert_eq!(m.amount, Some(600.0));
     assert_eq!(m.receivable, Some(2400.0));
+    drop(st2); // st2 加载时也持有了独占锁，必须先释放再继续
 
     // 编辑
     let (st, j) = call(&app, "POST", "/api/members/update",
         Some(json!({"id": mid, "fields": {"name":"接口员改","remark":"接口备注"}}))).await;
     assert_eq!(st, StatusCode::OK);
     assert!(ok(&j));
+    unlock(&app);
     let st3 = Store::load(dir.join("测试表格.xlsx"), dir).unwrap();
     let m3 = st3.members.iter().find(|m| m.id == mid).unwrap();
     assert_eq!(m3.name, "接口员改");

@@ -40,6 +40,52 @@ fn same_path(a: &Path, b: &Path) -> bool {
     norm(a) == norm(b)
 }
 
+impl Store {
+    /// 尝试独占锁定表格文件（Windows：share_mode=0 常驻句柄，外部读写即被拒绝）。
+    /// 幂等；文件不存在时跳过；被外部占用（如启动时 Excel 已打开）时返回 false，后续磁盘操作会重试。
+    pub fn acquire_file_lock(&mut self) -> bool {
+        if self.lock.is_some() {
+            return true;
+        }
+        if !self.path.is_file() {
+            return false;
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            match std::fs::OpenOptions::new().read(true).share_mode(0).open(&self.path) {
+                Ok(f) => {
+                    self.lock = Some(f);
+                    true
+                }
+                Err(e) => {
+                    eprintln!("[WARN] 表格暂无法独占锁定（可能正被 Excel/WPS 打开）：{}", e);
+                    false
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            // unix 无强制共享锁语义（advisory 锁对 Excel/WPS 无效），macOS 版暂不实现
+            true
+        }
+    }
+
+    /// 释放独占句柄（换表 / 进程退出时；测试中模拟外部读取也用它）
+    pub fn release_file_lock(&mut self) {
+        self.lock = None;
+    }
+
+    /// 释放锁执行磁盘 I/O（快照/落盘/重载需真实读写主文件），结束后重新独占。
+    /// 窗口仅数毫秒，单用户本地场景下外部恰好抢占可忽略。
+    pub fn disk_unlocked<T>(&mut self, f: impl FnOnce(&mut Store) -> T) -> T {
+        self.release_file_lock();
+        let r = f(self);
+        self.acquire_file_lock();
+        r
+    }
+}
+
 /// 启动检测：存在挂起工件且其目标与当前表格一致时返回元数据
 fn detect_recoverable(path: &Path, app_dir: &Path) -> Option<Value> {
     if !pending_bytes_path(app_dir).is_file() {
@@ -101,6 +147,9 @@ pub struct Store {
     pub last_saved: Option<String>,
     /// 启动时检测到的挂起变更元数据（保存失败落盘的工作簿可恢复）
     pub recoverable: Option<Value>,
+    /// 独占句柄（Windows）：share_mode=0 的常驻打开句柄，
+    /// 系统运行期间外部程序（Excel/WPS/任何工具）打开表格即被内核拒绝
+    lock: Option<std::fs::File>,
 }
 
 fn js_str(v: &Value) -> Option<String> {
@@ -139,7 +188,7 @@ impl Store {
         let tpl_class = row_templates(cls_xml, 2);
         let doc_bytes = finalize_and_write(&entries)?;
         let recoverable = detect_recoverable(&path, &app_dir);
-        Ok(Store {
+        let mut st = Store {
             path,
             app_dir,
             entries,
@@ -155,7 +204,10 @@ impl Store {
             pending_reason: None,
             last_saved: None,
             recoverable,
-        })
+            lock: None,
+        };
+        st.acquire_file_lock();
+        Ok(st)
     }
 
     fn rebuild(&mut self) -> Result<(), StoreError> {
@@ -181,7 +233,9 @@ impl Store {
     }
 
     // ------------------------------------------------------------- 查询
-    pub fn data_json(&self) -> Value {
+    pub fn data_json(&mut self) -> Value {
+        // 自愈：启动瞬间若锁被杀软扫描等短暂占用而失败，随 UI 轮询持续重试补上
+        self.acquire_file_lock();
         let today = crate::model::local_now().date();
         let (m, c, d) = crate::compute::compute(today, &self.members, &self.classes);
         json!({"members": m, "classes": c, "dashboard": d, "meta": self.meta()})
@@ -465,11 +519,15 @@ impl Store {
 
     // ------------------------------------------------------------- 持久化
     pub fn save(&mut self, action: &str, summary: &str, mid: Option<&str>) -> Result<bool, StoreError> {
-        if !self.pending {
-            snapshot::snapshot(&self.path, &self.app_dir, action, summary, mid);
-        }
+        self.acquire_file_lock();
+        // 快照与落盘都要真实读写主文件：在解锁窗口内完成，结束后重新独占
         let tmp = self.path.with_extension("xlsx.tmp");
-        let result = std::fs::write(&tmp, &self.doc_bytes).and_then(|_| std::fs::rename(&tmp, &self.path));
+        let result = self.disk_unlocked(|s| {
+            if !s.pending {
+                snapshot::snapshot(&s.path, &s.app_dir, action, summary, mid);
+            }
+            std::fs::write(&tmp, &s.doc_bytes).and_then(|_| std::fs::rename(&tmp, &s.path))
+        });
         match result {
             Ok(_) => {
                 self.pending = false;
@@ -517,21 +575,24 @@ impl Store {
         if !src.is_file() || self.recoverable.is_none() {
             return Err(StoreError::Biz("没有可恢复的挂起变更".into()));
         }
-        let bytes = std::fs::read(&src).map_err(|e| StoreError::Sys(format!("OSError: {}", e)))?;
-        let tmp = self.path.with_extension("xlsx.tmp");
-        let result = std::fs::write(&tmp, &bytes).and_then(|_| std::fs::rename(&tmp, &self.path));
-        if let Err(e) = result {
-            let _ = std::fs::remove_file(&tmp);
-            return Err(match e.kind() {
-                std::io::ErrorKind::PermissionDenied => {
-                    StoreError::Biz("表格文件仍被 Excel/WPS 占用，请先关闭后重试".into())
-                }
-                _ => StoreError::Sys(format!("OSError: {}", e)),
-            });
-        }
-        remove_pending_files(&self.app_dir);
-        self.recoverable = None;
-        self.reload_file().map_err(StoreError::Sys)?;
+        self.disk_unlocked(|s| -> Result<(), StoreError> {
+            let bytes =
+                std::fs::read(&src).map_err(|e| StoreError::Sys(format!("OSError: {}", e)))?;
+            let tmp = s.path.with_extension("xlsx.tmp");
+            let result = std::fs::write(&tmp, &bytes).and_then(|_| std::fs::rename(&tmp, &s.path));
+            if let Err(e) = result {
+                let _ = std::fs::remove_file(&tmp);
+                return Err(match e.kind() {
+                    std::io::ErrorKind::PermissionDenied => {
+                        StoreError::Biz("表格文件仍被 Excel/WPS 占用，请先关闭后重试".into())
+                    }
+                    _ => StoreError::Sys(format!("OSError: {}", e)),
+                });
+            }
+            remove_pending_files(&s.app_dir);
+            s.recoverable = None;
+            s.reload_file().map_err(StoreError::Sys)
+        })?;
         self.last_saved = Some(now_ts());
         Ok(())
     }
@@ -554,33 +615,35 @@ impl Store {
 
     /// 用磁盘当前内容重建内存（恢复版本后调用）
     pub fn reload_file(&mut self) -> Result<(), String> {
-        let bytes = std::fs::read(&self.path).map_err(|e| format!("OSError: {}", e))?;
-        let entries = read_entries(&bytes)?;
-        let paths = sheet_paths(&entries)?;
-        let sheet_archive = paths
-            .get(crate::SHEET_ARCHIVE)
-            .cloned()
-            .ok_or_else(|| format!("该表格缺少工作表：{}", crate::SHEET_ARCHIVE))?;
-        let sheet_class = paths
-            .get(crate::SHEET_RECORDS)
-            .cloned()
-            .ok_or_else(|| format!("该表格缺少工作表：{}", crate::SHEET_RECORDS))?;
-        let (members, classes, refund_header_present) = read_raw(&bytes)?;
-        let arch_xml = find_entry_bytes(&entries, &sheet_archive)?;
-        let cls_xml = find_entry_bytes(&entries, &sheet_class)?;
-        self.tpl_archive = row_templates(arch_xml, 2);
-        self.tpl_class = row_templates(cls_xml, 2);
-        self.sheet_archive = sheet_archive;
-        self.sheet_class = sheet_class;
-        self.doc_bytes = finalize_and_write(&entries)?;
-        self.entries = entries;
-        self.members = members;
-        self.classes = classes;
-        self.refund_header_present = refund_header_present;
-        self.pending = false;
-        self.pending_reason = None;
-        self.last_saved = None;
-        Ok(())
+        self.disk_unlocked(|s| -> Result<(), String> {
+            let bytes = std::fs::read(&s.path).map_err(|e| format!("OSError: {}", e))?;
+            let entries = read_entries(&bytes)?;
+            let paths = sheet_paths(&entries)?;
+            let sheet_archive = paths
+                .get(crate::SHEET_ARCHIVE)
+                .cloned()
+                .ok_or_else(|| format!("该表格缺少工作表：{}", crate::SHEET_ARCHIVE))?;
+            let sheet_class = paths
+                .get(crate::SHEET_RECORDS)
+                .cloned()
+                .ok_or_else(|| format!("该表格缺少工作表：{}", crate::SHEET_RECORDS))?;
+            let (members, classes, refund_header_present) = read_raw(&bytes)?;
+            let arch_xml = find_entry_bytes(&entries, &sheet_archive)?;
+            let cls_xml = find_entry_bytes(&entries, &sheet_class)?;
+            s.tpl_archive = row_templates(arch_xml, 2);
+            s.tpl_class = row_templates(cls_xml, 2);
+            s.sheet_archive = sheet_archive;
+            s.sheet_class = sheet_class;
+            s.doc_bytes = finalize_and_write(&entries)?;
+            s.entries = entries;
+            s.members = members;
+            s.classes = classes;
+            s.refund_header_present = refund_header_present;
+            s.pending = false;
+            s.pending_reason = None;
+            s.last_saved = None;
+            Ok(())
+        })
     }
 
     pub fn restore_version(&mut self, file: &str) -> Result<(), StoreError> {
@@ -597,22 +660,31 @@ impl Store {
         if !src.is_file() {
             return Err(StoreError::Biz(format!("版本文件不存在：{}", safe)));
         }
-        snapshot::snapshot(
-            &self.path,
-            &self.app_dir,
-            "恢复前自动备份",
-            &format!("恢复 {} 前的当前状态", safe),
-            None,
-        );
-        std::fs::copy(&src, &self.path)
-            .map_err(|e| {
+        self.acquire_file_lock();
+        self.disk_unlocked(|s| -> Result<(), StoreError> {
+            snapshot::snapshot(
+                &s.path,
+                &s.app_dir,
+                "恢复前自动备份",
+                &format!("恢复 {} 前的当前状态", safe),
+                None,
+            );
+            std::fs::copy(&src, &s.path).map_err(|e| {
                 if e.kind() == std::io::ErrorKind::PermissionDenied {
                     StoreError::Biz("表格文件被占用，请先关闭 Excel/WPS 再恢复".into())
                 } else {
                     StoreError::Sys(format!("OSError: {}", e))
                 }
             })?;
+            Ok(())
+        })?;
         self.reload_file().map_err(StoreError::Sys)
+    }
+
+    /// 把磁盘上当前表格快照到 versions/（手动备份 / 换表备份共用，自动处理文件锁）
+    pub fn backup_current(&mut self, action: &str, summary: &str) {
+        self.acquire_file_lock();
+        self.disk_unlocked(|s| snapshot::snapshot(&s.path, &s.app_dir, action, summary, None));
     }
 
     pub fn versions_json(&self) -> Vec<Value> {
@@ -679,7 +751,9 @@ mod tests {
         assert!(st2.members.iter().any(|m| m.id == mid));
         assert!(st2.recoverable.is_none());
 
-        // 磁盘文件已包含变更，工件已清理
+        // 磁盘文件已包含变更，工件已清理（st2 持锁，先释放）
+        st2.release_file_lock();
+        drop(st2);
         let st3 = Store::load(path, dir).unwrap();
         assert!(st3.members.iter().any(|m| m.id == mid));
         assert!(!pending_bytes_path(&st3.app_dir).is_file());
@@ -715,5 +789,38 @@ mod tests {
         drop(st);
         let st2 = Store::load(path, dir).unwrap();
         assert!(st2.recoverable.is_none(), "目标不一致不应提示恢复");
+    }
+
+    /// Windows：系统运行期间表格应无法被外部打开（读/写都被内核拒绝），释放后恢复
+    #[cfg(windows)]
+    #[test]
+    fn exclusive_lock_blocks_external_open() {
+        let mut st = temp_store("lock");
+        assert!(
+            std::fs::File::open(&st.path).is_err(),
+            "锁定期间外部 open 应失败"
+        );
+        assert!(std::fs::read(&st.path).is_err(), "锁定期间外部读应失败");
+        st.release_file_lock();
+        assert!(std::fs::File::open(&st.path).is_ok(), "释放后应可正常打开");
+    }
+
+    /// 锁在 save 的"解锁-重锁"周期后仍然保持，且落盘内容正确
+    #[cfg(windows)]
+    #[test]
+    fn lock_survives_save_cycle() {
+        let mut st = temp_store("locksave");
+        st.add_member(&json!({
+            "name": "锁测试", "phone": "13800000123", "card_type": "次卡", "total_sessions": "3"
+        }))
+        .unwrap();
+        assert!(st.save("测试", "t", None).unwrap());
+        assert!(
+            std::fs::File::open(&st.path).is_err(),
+            "保存后应仍处于锁定状态"
+        );
+        st.release_file_lock();
+        let st2 = Store::load(st.path.clone(), st.app_dir.clone()).unwrap();
+        assert_eq!(st2.members.len(), 6, "解锁窗口内的落盘应已生效");
     }
 }

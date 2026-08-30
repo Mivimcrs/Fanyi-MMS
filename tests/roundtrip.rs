@@ -110,9 +110,10 @@ fn write_path_roundtrip() {
     st.update_member(&mid, &fields).unwrap();
     assert!(st.members.iter().find(|m| m.id == mid).unwrap().refund);
 
-    // 落盘 + 重读校验持久化
+    // 落盘 + 重读校验持久化（Store 持有独占锁，先释放再模拟外部读取）
     assert!(st.save("编辑会员", "test", None).unwrap());
     let (p, dir) = (st.path.clone(), st.app_dir.clone());
+    drop(st);
     let st2 = Store::load(p, dir).unwrap();
     let m3 = st2.members.iter().find(|m| m.id == mid).unwrap();
     assert!(m3.refund);
@@ -134,6 +135,7 @@ fn surgery_fidelity() {
     }))
     .unwrap();
     assert!(st.save("新增会员", "t", None).unwrap());
+    st.release_file_lock(); // 读取落盘文件前先释放独占锁
 
     let saved = std::fs::read(&st.path).unwrap();
     let oe = read_entries(&orig).unwrap();

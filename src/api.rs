@@ -56,8 +56,8 @@ async fn index() -> Response {
 }
 
 async fn api_data(State(st): State<Arc<AppState>>) -> Response {
-    let guard = st.store.lock().unwrap();
-    match &*guard {
+    let mut guard = st.store.lock().unwrap();
+    match guard.as_mut() {
         None => Json(json!({
             "ok": true,
             "no_file": true,
@@ -153,33 +153,28 @@ async fn api_file(State(st): State<Arc<AppState>>, body: Bytes) -> Response {
         }
     }
     let dest = st.app_dir.join(&name);
-    // 旧表先快照，再切换
-    let old_info = {
-        let guard = st.store.lock().unwrap();
-        guard.as_ref().map(|s| (s.path.clone(), s.app_dir.clone()))
-    };
-    if let Some((old_path, old_dir)) = old_info {
-        crate::snapshot::snapshot(
-            &old_path,
-            &old_dir,
-            "更换表格前备份",
-            &format!("更换为 {} 前的当前表格", name),
-            None,
-        );
+    // 旧表先快照再切换；旧表即将退役，随切换释放其独占锁
+    {
+        let mut guard = st.store.lock().unwrap();
+        if let Some(s) = guard.as_mut() {
+            s.backup_current("更换表格前备份", &format!("更换为 {} 前的当前表格", name));
+            s.release_file_lock();
+        }
     }
     // 换表即放弃旧表的挂起变更（单槽位语义）
     crate::store::remove_pending_files(&st.app_dir);
     // 内存级完整加载校验：失败时不落盘、不影响当前表格
-    let store = match Store::from_bytes(dest.clone(), st.app_dir.clone(), raw.clone()) {
+    let mut store = match Store::from_bytes(dest.clone(), st.app_dir.clone(), raw.clone()) {
         Ok(s) => s,
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, &e),
     };
-    // 校验全部通过后才原子写入目标位置
+    // 校验全部通过后才原子写入目标位置（旧锁已释放，dest 与旧表同路径也安全）
     let tmp = dest.with_extension("xlsx.tmp");
     if let Err(e) = std::fs::write(&tmp, &raw).and_then(|_| std::fs::rename(&tmp, &dest)) {
         let _ = std::fs::remove_file(&tmp);
         return err(StatusCode::INTERNAL_SERVER_ERROR, &format!("OSError: {}", e));
     }
+    store.acquire_file_lock();
     crate::save_config(&st.app_dir, &dest);
     let meta = store.meta();
     *st.store.lock().unwrap() = Some(store);
@@ -330,9 +325,7 @@ async fn api_versions_backup(State(st): State<Arc<AppState>>, body: Bytes) -> Re
         Some(s) => s,
         None => return err(StatusCode::BAD_REQUEST, "尚未加载表格文件，请先选择表格文件"),
     };
-    let path = store.path.clone();
-    let app_dir = store.app_dir.clone();
-    crate::snapshot::snapshot(&path, &app_dir, "手动备份", &note, None);
+    store.backup_current("手动备份", &note);
     let versions = store.versions_json();
     Json(json!({"ok": true, "versions": versions})).into_response()
 }
