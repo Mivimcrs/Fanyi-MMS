@@ -1,7 +1,14 @@
-# 莱·梵壹会员实时跟踪管理系统 — Rust 版（v3.0）
+# 莱·梵壹会员实时跟踪管理系统 — Rust 版（v3.0.1）
 
 Python 版的 Rust 重写：**单个可执行文件、无需安装 Python/任何环境**，双端（Windows / macOS）可用。
 Excel 工作簿仍是唯一数据源，读写保真（公式、条件格式、下拉校验、数组公式全部保留）。
+
+**English overview**: A single-binary, zero-dependency local membership management tool for a
+small studio. The Excel workbook is the sole data store; the Rust backend reads it with calamine,
+writes back with a byte-level "XML surgery" engine that preserves everything else in the workbook
+(slicers, conditional formatting, validations, formulas), and serves a dark/light themed web UI on
+127.0.0.1. Downloads: [Releases](https://github.com/Mivimcrs/Fanyi-MMS/releases) ·
+[code-signing policy](docs/code-signing-policy.md) · License: MIT.
 
 ## 目录结构
 
