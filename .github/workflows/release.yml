@@ -1,7 +1,8 @@
 name: build-release
 
 # 双平台发布构建：打 tag（v*）或手动触发
-# Windows: MSVC 工具链，产出 laifanyi.exe（托盘 + 无控制台）
+# Windows: MSVC 工具链；若仓库变量 SIGNPATH_ORGANIZATION_ID 已配置，则经 SignPath 签名后打包
+#          （Foundation 条款要求每次签名需在 SignPath.io 人工批准，注意工作流会等待）
 # macOS:   Intel + Apple Silicon 双架构 lipo 合并 universal2，组装 .app（实验性）
 on:
   push:
@@ -11,25 +12,66 @@ on:
 jobs:
   windows:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: Build
         run: cargo build --release
-      - name: Package (portable zip)
+      - name: Prepare package files
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force unsigned | Out-Null
+          Copy-Item target/release/laifanyi.exe unsigned/
+          Copy-Item README.md unsigned/使用说明.txt
+      - name: Upload unsigned artifact (for SignPath)
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-windows
+          path: unsigned/
+      - name: Submit signing request (SignPath)
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id: '${{ vars.SIGNPATH_ORGANIZATION_ID }}'
+          project-slug: '${{ vars.SIGNPATH_PROJECT_SLUG }}'
+          signing-policy-slug: '${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}'
+          github-artifact-id: '${{ steps.upload-unsigned.outputs.artifact-id }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: '3600'
+          output-artifact-directory: 'signed'
+      - name: Package (signed)
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item target/release/laifanyi.exe dist/
-          Copy-Item README.md dist/使用说明.txt
-          Compress-Archive -Path dist/* -DestinationPath laifanyi-windows-x64.zip
+          if (-not (Test-Path 'signed/laifanyi.exe')) {
+            # 若签名产物以 zip 形式返回，先解压
+            $z = Get-ChildItem signed -Filter *.zip | Select-Object -First 1
+            if ($z) { Expand-Archive -Path $z.FullName -DestinationPath signed_extracted }
+            if (Test-Path 'signed_extracted/laifanyi.exe') { Remove-Item signed -Recurse -Force; Rename-Item signed_extracted signed }
+          }
+          Compress-Archive -Path signed/* -DestinationPath dist/laifanyi-windows-x64.zip -Force
+      - name: Package (unsigned fallback)
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID == '' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path unsigned/* -DestinationPath dist/laifanyi-windows-x64.zip -Force
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: laifanyi-windows-x64.zip
+          path: dist/laifanyi-windows-x64.zip
 
   macos:
     runs-on: macos-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

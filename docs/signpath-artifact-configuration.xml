@@ -1,0 +1,8 @@
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <pe-file path="laifanyi.exe">
+      <authenticode-sign/>
+    </pe-file>
+    <file path="使用说明.txt"/>
+  </zip-file>
+</artifact-configuration>
