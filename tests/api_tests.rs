@@ -336,3 +336,36 @@ async fn pending_recover_via_http() {
     assert!(!laifanyi_core::store::pending_bytes_path(&dir).is_file());
     assert!(!laifanyi_core::store::pending_meta_path(&dir).is_file());
 }
+
+#[tokio::test]
+async fn store_name_absent_initially_then_settable() {
+    // 首次运行：config.json 无 store_name → /api/data 返回 null（前端据此弹首窗）
+    let dir = temp_dir("storename");
+    let app = app_without_store(dir.clone());
+    let (st, j) = call(&app, "GET", "/api/data", None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(j["store_name"], Value::Null);
+    // 设置名称 → 落盘 config.json + 后续读取返回该名称
+    let (st, j) = call(&app, "POST", "/api/store-name", Some(json!({"name": "万达广场店"}))).await;
+    assert_eq!(st, StatusCode::OK, "设置失败: {}", j);
+    assert_eq!(j["store_name"], json!("万达广场店"));
+    let (st, j) = call(&app, "GET", "/api/data", None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(j["store_name"], json!("万达广场店"));
+    // 空串 = 跳过/清除
+    let (st, j) = call(&app, "POST", "/api/store-name", Some(json!({"name": "  "}))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(j["store_name"], json!(""));
+    let (_, j) = call(&app, "GET", "/api/data", None).await;
+    assert_eq!(j["store_name"], json!(""));
+}
+
+#[tokio::test]
+async fn store_name_rejects_too_long() {
+    let dir = temp_dir("storenamelong");
+    let app = app_without_store(dir);
+    let long = "很".repeat(21);
+    let (st, j) = call(&app, "POST", "/api/store-name", Some(json!({"name": long}))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+    assert_eq!(j["ok"], json!(false));
+}

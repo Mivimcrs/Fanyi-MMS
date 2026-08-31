@@ -1,6 +1,6 @@
 [package]
 name = "laifanyi-member-system"
-version = "3.0.1"
+version = "3.1.0"
 edition = "2021"
 description = "莱·梵壹会员实时跟踪管理系统 - Rust 后端（单文件、免环境）"
 build = "build.rs"

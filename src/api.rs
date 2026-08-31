@@ -33,6 +33,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/versions/restore", post(api_versions_restore))
         .route("/api/save", post(api_save))
         .route("/api/reload", post(api_reload))
+        .route("/api/store-name", post(api_store_name))
         .route("/api/pending/recover", post(api_pending_recover))
         .route("/api/pending/discard", post(api_pending_discard))
         .with_state(state)
@@ -62,9 +63,10 @@ async fn api_data(State(st): State<Arc<AppState>>) -> Response {
             "ok": true,
             "no_file": true,
             "reason": format!("未找到同目录下名为「{}」的表格文件，请手动选择。", crate::DEFAULT_PREFIX),
+            "store_name": crate::read_store_name(&st.app_dir),
         }))
         .into_response(),
-        Some(s) => Json(json!({"ok": true, "data": s.data_json()})).into_response(),
+        Some(s) => Json(json!({"ok": true, "data": s.data_json(), "store_name": crate::read_store_name(&st.app_dir)})).into_response(),
     }
 }
 
@@ -400,4 +402,23 @@ async fn api_pending_discard(State(st): State<Arc<AppState>>) -> Response {
         None => crate::store::remove_pending_files(&st.app_dir),
     }
     Json(json!({"ok": true})).into_response()
+}
+
+/// 设置/清除门店名称：{name} → trim，空串=跳过/清除（合法），≤20 字（超长 400）
+async fn api_store_name(State(st): State<Arc<AppState>>, body: Bytes) -> Response {
+    let body = match parse_body(&body) {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    let name = body
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if name.chars().count() > 20 {
+        return err(StatusCode::BAD_REQUEST, "门店名称不能超过 20 个字");
+    }
+    crate::write_store_name(&st.app_dir, &name);
+    Json(json!({"ok": true, "store_name": name})).into_response()
 }

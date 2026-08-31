@@ -44,15 +44,14 @@ pub fn spawn_tray(_open_url: String, _data_dir: PathBuf) {}
 #[cfg(windows)]
 fn tray_main(open_url: String, data_dir: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     use tray_icon::menu::{Menu, MenuEvent, MenuItem};
-    use tray_icon::{Icon, TrayIconBuilder};
+    use tray_icon::TrayIconBuilder;
 
     let open_item = MenuItem::with_id("open", "打开网页", true, None);
     let folder_item = MenuItem::with_id("folder", "打开数据文件夹", true, None);
     let quit_item = MenuItem::with_id("quit", "退出", true, None);
     let menu = Menu::with_items(&[&open_item, &folder_item, &quit_item])?;
 
-    let (rgba, w, h) = icon_rgba();
-    let icon = Icon::from_rgba(rgba, w, h)?;
+    let icon = load_tray_icon()?;
 
     let _tray = TrayIconBuilder::new()
         .with_menu(Box::new(menu))
@@ -89,7 +88,19 @@ fn tray_main(open_url: String, data_dir: PathBuf) -> Result<(), Box<dyn std::err
     }
 }
 
-/// 程序化生成 32x32 品牌色（紫罗兰渐变圆角）托盘图标，无需外部资源文件
+/// 托盘图标：优先从 exe 内嵌资源读取 build.rs 嵌入的 app.ico（资源 ID 1），
+/// 从而与任务栏/资源管理器里的程序图标同源一致；加载失败时回退到程序化渐变圆。
+#[cfg(windows)]
+fn load_tray_icon() -> Result<tray_icon::Icon, tray_icon::BadIcon> {
+    // build.rs 用 windres 写成 `1 ICON "assets/app.ico"`，此处按资源 ID 1 读取
+    if let Ok(icon) = tray_icon::Icon::from_resource(1, Some((32, 32))) {
+        return Ok(icon);
+    }
+    let (rgba, w, h) = icon_rgba();
+    tray_icon::Icon::from_rgba(rgba, w, h)
+}
+
+/// 回退用：程序化生成 32x32 品牌色（紫罗兰渐变圆角）托盘图标，无需外部资源文件
 #[cfg(windows)]
 fn icon_rgba() -> (Vec<u8>, u32, u32) {
     const S: u32 = 32;
@@ -113,4 +124,23 @@ fn icon_rgba() -> (Vec<u8>, u32, u32) {
         }
     }
     (v, S, S)
+}
+
+/// Windows：验证 build.rs 嵌入的资源 ID 1（app.ico）能被 tray-icon 读到，
+/// 即托盘图标与任务栏/资源管理器程序图标同源。
+#[cfg(all(test, windows))]
+mod tests {
+    #[test]
+    fn exe_resource_icon_loadable() {
+        let icon = tray_icon::Icon::from_resource(1, Some((32, 32)));
+        assert!(icon.is_ok(), "app.ico 资源 ID 1 无法从 exe 读取：{:?}", icon.err());
+    }
+
+    #[test]
+    fn fallback_gradient_icon_loadable() {
+        let (rgba, w, h) = super::icon_rgba();
+        assert_eq!(rgba.len() as u32, w * h * 4);
+        let icon = tray_icon::Icon::from_rgba(rgba, w, h);
+        assert!(icon.is_ok(), "渐变回退图标构造失败：{:?}", icon.err());
+    }
 }

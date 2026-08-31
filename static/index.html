@@ -49,6 +49,9 @@ body{
 }
 .brand h1{font-size:15.5px;font-weight:700;letter-spacing:.5px}
 .brand .sub{font-size:11.5px;color:var(--muted);margin-top:1px}
+.brand .store-name{font-size:11px;color:var(--muted);font-weight:400;margin-left:6px;letter-spacing:.2px}
+.brand .store-name.on{cursor:pointer}
+.brand .store-name.on:hover{color:var(--violet2)}
 .nav{padding:14px 12px;display:flex;flex-direction:column;gap:4px}
 .nav button{
   display:flex;align-items:center;gap:10px;width:100%;text-align:left;
@@ -348,7 +351,7 @@ html[data-theme="day"] #theme-toggle .lbl-to-night{display:inline}
     <div class="brand">
       <div class="logo"><div class="mark">梵</div></div>
       <div>
-        <h1>莱·梵壹</h1>
+        <h1>莱·梵壹<span id="store-name" class="store-name" title="点击修改门店名称"></span></h1>
         <div class="sub">会员实时跟踪管理系统</div>
       </div>
     </div>
@@ -377,6 +380,7 @@ html[data-theme="day"] #theme-toggle .lbl-to-night{display:inline}
       </div>
       <div class="mini">
         <button id="btn-refresh" title="重新读取数据">刷新数据</button>
+        <button id="btn-store" title="设置名称，显示在左上角品牌名旁">门店名称</button>
         <button id="btn-swap-file" title="选择另一份表格文件（.xlsx / .xlsm）">更换表格</button>
         <button id="btn-reload" title="重新读取表格文件内容。系统运行期间表格被独占锁定，如需在 Excel/WPS 手改，请先在托盘菜单退出本系统">从表格重载</button>
       </div>
@@ -417,6 +421,7 @@ html[data-theme="day"] #theme-toggle .lbl-to-night{display:inline}
 const S = {
   data: null,
   view: "dashboard",
+  storeName: null, // null=未设置；""=已跳过；字符串=已设置
   range: null, // 大屏统计时间范围 {start, end}
   filters: { q: "", status: "", card: "", teacher: "", pStart: "", pEnd: "" },
   recFilters: { q: "", range: "all" },
@@ -457,8 +462,57 @@ async function api(path, body, method) {
 async function refresh(keepDrawer) {
   const j = await api("/api/data");
   S.data = j.data;
+  S.storeName = j.store_name ?? null;
   render();
   if (!keepDrawer) closeDrawer();
+}
+
+/* ---------- 门店名称：顶栏展示 + 设置弹窗 ---------- */
+function renderBrand() {
+  const el = $("#store-name");
+  if (!el) return;
+  const n = S.storeName;
+  if (n) {
+    el.textContent = "· " + n;
+    el.classList.add("on");
+  } else {
+    el.textContent = "";
+    el.classList.remove("on");
+  }
+}
+function promptStoreName(auto) {
+  const root = modal(`
+    <div class="modal-head"><h3>${auto ? "欢迎使用 · 设置门店名称" : "门店名称"}<button class="x">×</button></h3></div>
+    <div class="modal-body" style="font-size:13.5px;line-height:1.9">${auto
+      ? "首次使用，请填写门店名称。它将以小字显示在左上角品牌名「莱·梵壹」旁，可随时修改。"
+      : "门店名称将显示在左上角品牌名「莱·梵壹」旁，可随时修改。"}<br>
+      <input class="input" id="sn-input" placeholder="例如：万达广场店" maxlength="20" value="${esc(S.storeName || "")}" style="width:100%;margin-top:6px">
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="sn-skip">跳过</button>
+      <button class="btn primary" id="sn-save">保存</button>
+    </div>`);
+  const input = $("#sn-input", root);
+  const save = async () => {
+    const name = input.value.trim();
+    const btn = $("#sn-save", root);
+    btn.disabled = true;
+    try {
+      const j = await api("/api/store-name", { name });
+      S.storeName = j.store_name ?? null;
+      renderBrand();
+      closeModal();
+      toast(name ? `门店名称已保存：${name}` : "已跳过设置门店名称", "ok");
+    } catch (e) { toast(e.message, "err"); btn.disabled = false; }
+  };
+  $("#sn-save", root).addEventListener("click", save);
+  $("#sn-skip", root).addEventListener("click", save);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
+  input.focus();
+}
+function bindStore() {
+  $("#store-name").addEventListener("click", () => promptStoreName(false));
+  $("#btn-store").addEventListener("click", () => promptStoreName(false));
 }
 
 /* ---------------------------------------------------------------- toast */
@@ -1393,7 +1447,7 @@ function renderSetup() {
 /* ---------- 上次未保存变更（挂起工件）恢复提示 ---------- */
 function maybePromptPending() {
   const pr = S.data?.meta?.pending_recovery;
-  if (!pr) return;
+  if (!pr) return false;
   const root = modal(`
     <div class="modal-head"><h3>发现未保存的变更</h3><button class="x">×</button></div>
     <div class="modal-body" style="font-size:13.5px;line-height:1.9">
@@ -1424,6 +1478,7 @@ function maybePromptPending() {
       toast("已丢弃挂起的变更", "ok");
     } catch (e) { toast(e.message, "err"); }
   });
+  return true;
 }
 
 /* ==================================================================== */
@@ -1585,6 +1640,7 @@ function render() {
   $("#page-title").textContent = vm.t;
   $("#page-desc").innerHTML = vm.d();
   renderSaveState();
+  renderBrand();
   if (S.view === "dashboard") renderDashboard();
   else if (S.view === "members") renderMembers();
   else if (S.view === "records") renderRecords();
@@ -1595,10 +1651,13 @@ function render() {
 (async function boot() {
   try {
     const j = await api("/api/data");
-    if (j.no_file) { renderSetup(); return; }
+    S.storeName = j.store_name ?? null;
+    bindStore();
+    if (j.no_file) { renderSetup(); renderBrand(); if (S.storeName == null) promptStoreName(true); return; }
     S.data = j.data;
     render();
-    maybePromptPending();
+    // 首次运行：无挂起恢复弹窗时提示设置门店名称
+    if (S.storeName == null && !maybePromptPending()) promptStoreName(true);
     setInterval(async () => {
       if ($(".modal-mask.show") || $("#drawer").classList.contains("show")) return;
       try { await refresh(true); } catch (e) {}
